@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Lesetreneren – Norsk lesetrening</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: linear-gradient(150deg, #e0f2fe 0%, #f0fdf4 55%, #fefce8 100%);
+      color: #1e293b;
+      user-select: none;
+    }
+    button, .touch-btn {
+      touch-action: manipulation;
+      cursor: pointer;
+    }
+    textarea, input {
+      user-select: text;
+    }
+
+    @keyframes cheerJump {
+      0%, 100% { transform: translateY(0) scale(1); }
+      30% { transform: translateY(-16px) scale(1.07); }
+      60% { transform: translateY(-5px) scale(1.02); }
+    }
+    @keyframes armWaveLeft {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(-120deg); }
+    }
+    @keyframes armWaveRight {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(120deg); }
+    }
+    @keyframes gentleNod {
+      0%, 100% { transform: rotate(0deg); }
+      35% { transform: rotate(-6deg); }
+      70% { transform: rotate(6deg); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.45); }
+      50% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
+    }
+
+    .avatar-cheer { animation: cheerJump 0.7s ease-in-out 2; }
+    .avatar-cheer .arm-left { transform-origin: 36px 68px; animation: armWaveLeft 0.55s ease-in-out 2; }
+    .avatar-cheer .arm-right { transform-origin: 84px 68px; animation: armWaveRight 0.55s ease-in-out 2; }
+    .avatar-nod { animation: gentleNod 0.45s ease-in-out 1; }
+    .minigame-ready-glow { animation: pulseGlow 2s infinite; }
+
+    /* Fargekoding: kan slås av/på i Voksen-menyen */
+    .char-vowel { color: #dc2626; }
+    .char-consonant { color: #2563eb; }
+    .tile-vowel { background-color: #fef2f2; border-color: #f87171; color: #b91c1c; }
+    .tile-consonant { background-color: #eff6ff; border-color: #60a5fa; color: #1d4ed8; }
+    .tile-neutral { background-color: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
+  </style>
+</head>
+<body class="pb-12">
+
+  <!-- TOPPLINJE: Minimal, rolig og oversiktlig for elevene -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+    <div class="max-w-4xl mx-auto px-3 py-2 flex items-center justify-between gap-2">
+      <!-- Venstre: Hjem (skjult på forsiden) + Aktivt nivå -->
+      <div class="flex items-center gap-2">
+        <button id="btn-home" onclick="goHome()" class="hidden items-center gap-1.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-extrabold px-3 py-2 rounded-xl border border-slate-300 transition text-sm">
+          <span>🏠</span>
+          <span class="hidden sm:inline">Hjem</span>
+        </button>
+
+        <button onclick="openTrackModal()" class="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 active:scale-95 text-indigo-950 font-extrabold px-3 py-2 rounded-xl border-2 border-indigo-200 transition text-sm">
+          <span id="header-track-icon">🌱</span>
+          <span id="header-track-label">Nivå 1</span>
+          <span class="text-[11px] text-indigo-500">▼</span>
+        </button>
+      </div>
+
+      <!-- Midten: Stjerner + Egg-fremdrift -->
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1 bg-amber-50 border border-amber-300 px-2.5 py-1.5 rounded-xl font-black text-amber-800 text-sm">
+          <span>⭐</span>
+          <span id="stat-stars">0</span>
+        </div>
+
+        <button onclick="openEggHatchIfReady()" class="flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 px-2.5 py-1.5 rounded-xl font-bold text-emerald-900 text-sm" title="Egg klekker for hver 5. stjerne">
+          <span>🥚</span>
+          <div class="w-12 sm:w-16 bg-emerald-200 h-2.5 rounded-full overflow-hidden">
+            <div id="bar-egg" class="bg-emerald-600 h-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <span id="stat-egg-text" class="text-xs font-extrabold">0/5</span>
+        </button>
+      </div>
+
+      <!-- Høyre: Elevfigur + Diskret Voksen-knapp -->
+      <div class="flex items-center gap-2">
+        <button onclick="openAvatarModal()" class="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 active:scale-95 border-2 border-sky-200 px-2 py-1 rounded-xl transition">
+          <div id="header-avatar-mini" class="w-8 h-8"></div>
+          <span id="header-avatar-name" class="hidden sm:inline font-extrabold text-sky-950 text-sm max-w-[90px] truncate">Lesehelt</span>
+        </button>
+
+        <button onclick="openAdultModal('settings')" class="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-600 font-bold px-2.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm" title="Innstillinger og lærervalg">
+          <span>👩‍🏫</span>
+          <span class="hidden md:inline">Voksen</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HOVEDINNHOLD -->
+  <main class="max-w-4xl mx-auto px-3 sm:px-5 pt-4 pb-8">
+
+    <!-- =================================================================== -->
+    <!-- 1. ELEVENES FORSIDE (Rolig, ryddig, minimalt med tekst)             -->
+    <!-- =================================================================== -->
+    <section id="view-home" class="space-y-5">
+
+      <!-- TRINN 1: VELG NIVÅ / LØYPE FØRST -->
+      <div class="bg-white/95 rounded-3xl p-4 sm:p-5 border-2 border-indigo-100 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h1 class="text-lg sm:text-xl font-black text-slate-900">1. Velg nivå</h1>
+          <span id="custom-words-pill" class="hidden bg-violet-100 text-violet-900 text-xs font-extrabold px-2.5 py-1 rounded-full border border-violet-300">
+            ✨ Ukeord aktivert
+          </span>
+        </div>
+        <div id="home-track-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-2.5"></div>
+      </div>
+
+      <!-- TRINN 2: VELG OPPGAVE (Oppgavene i fokus) -->
+      <div class="space-y-3">
+        <h2 class="text-lg sm:text-xl font-black text-slate-900 px-1">2. Velg oppgave</h2>
+
+        <div class="grid grid-cols-1 gap-3">
+          <!-- ORDHELTEN -->
+          <button onclick="startOrdhelten()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-[0.99] text-white rounded-3xl p-5 shadow-md border-b-4 border-emerald-800 flex items-center justify-between gap-4 transition">
+            <div class="flex items-center gap-4">
+              <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-4xl shrink-0">🦸</div>
+              <div class="text-left">
+                <div class="text-2xl sm:text-3xl font-black tracking-tight">Ordhelten</div>
+                <div class="text-emerald-100 font-bold text-sm sm:text-base">Bygg ord &amp; finn lyder</div>
+              </div>
+            </div>
+            <div class="bg-white text-emerald-800 font-black px-5 py-3 rounded-2xl text-base shadow shrink-0">Start ▶</div>
+          </button>
+
+          <!-- ORDJAKTEN -->
+          <button onclick="startOrdjakten()" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 active:scale-[0.99] text-white rounded-3xl p-5 shadow-md border-b-4 border-orange-800 flex items-center justify-between gap-4 transition">
+            <div class="flex items-center gap-4">
+              <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-4xl shrink-0">🎯</div>
+              <div class="text-left">
+                <div class="text-2xl sm:text-3xl font-black tracking-tight">OrdJakten</div>
+                <div class="text-amber-100 font-bold text-sm sm:text-base">Finn ord, bilde &amp; sant/usant</div>
+              </div>
+            </div>
+            <div class="bg-white text-orange-800 font-black px-5 py-3 rounded-2xl text-base shadow shrink-0">Start ▶</div>
+          </button>
+
+          <!-- LYDBOKA -->
+          <button onclick="startLydboka()" class="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 active:scale-[0.99] text-white rounded-3xl p-5 shadow-md border-b-4 border-blue-800 flex items-center justify-between gap-4 transition">
+            <div class="flex items-center gap-4">
+              <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-4xl shrink-0">📖</div>
+              <div class="text-left">
+                <div class="text-2xl sm:text-3xl font-black tracking-tight">LydBoka</div>
+                <div class="text-sky-100 font-bold text-sm sm:text-base">Skriv og hør teksten din</div>
+              </div>
+            </div>
+            <div class="bg-white text-blue-800 font-black px-5 py-3 rounded-2xl text-base shadow shrink-0">Start ▶</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- BELØNNING & EKSTRA (Kompakt rad nederst) -->
+      <div class="grid grid-cols-3 gap-3 pt-1">
+        <button id="btn-minigame-home" onclick="openMinigameHub()" class="bg-white hover:bg-purple-50 active:scale-95 border-2 border-purple-200 rounded-2xl p-3.5 shadow-sm flex flex-col items-center gap-1 font-extrabold text-slate-800 transition">
+          <span class="text-2xl">🕹️</span>
+          <span class="text-xs sm:text-sm">Minispill (<span id="stat-tokens-home">1</span>)</span>
+        </button>
+
+        <button onclick="openView('view-album')" class="bg-white hover:bg-amber-50 active:scale-95 border-2 border-amber-200 rounded-2xl p-3.5 shadow-sm flex flex-col items-center gap-1 font-extrabold text-slate-800 transition">
+          <span class="text-2xl">🏆</span>
+          <span class="text-xs sm:text-sm">Album (<span id="stat-album-count">0</span>/20)</span>
+        </button>
+
+        <button onclick="openView('view-minecraft')" class="bg-white hover:bg-emerald-50 active:scale-95 border-2 border-emerald-200 rounded-2xl p-3.5 shadow-sm flex flex-col items-center gap-1 font-extrabold text-slate-800 transition">
+          <span class="text-2xl">⛏️</span>
+          <span class="text-xs sm:text-sm">Minecraft</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 2. MODUL: ORDHELTEN (Bygg hele ordet + Fyll inn manglende del)      -->
+    <!-- =================================================================== -->
+    <section id="view-ordhelten" class="hidden space-y-4">
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border-2 border-emerald-200 shadow-md">
+        <!-- Topplinje i oppgaven -->
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <div class="flex items-center gap-2">
+            <span id="oh-mode-badge" class="bg-emerald-100 text-emerald-900 text-xs sm:text-sm font-extrabold px-3 py-1 rounded-full">Bygg ordet</span>
+            <span id="oh-progress-text" class="text-sm font-bold text-slate-500">1</span>
+          </div>
+          <div class="flex items-center gap-2 bg-sky-50 border border-sky-200 px-3 py-1 rounded-2xl">
+            <div id="oh-avatar-stage" class="w-11 h-11"></div>
+            <span id="oh-avatar-label" class="text-xs font-extrabold text-sky-950 hidden sm:inline">Lesehelt</span>
+          </div>
+        </div>
+
+        <!-- Bilde + Lydknapp -->
+        <div class="flex flex-col items-center justify-center gap-3 my-3">
+          <div id="oh-emoji" class="text-7xl sm:text-8xl select-none">☀️</div>
+          <button onclick="speakCurrentOrdhelten()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black px-6 py-3 rounded-2xl shadow text-lg">
+            <span>🔊</span>
+            <span>Hør ordet</span>
+          </button>
+        </div>
+
+        <!-- Oppgaveområde (enten bokstavspor + brikker, eller manglende del) -->
+        <div id="oh-work-area" class="my-5"></div>
+
+        <!-- Tilbakemelding + Neste -->
+        <div id="oh-feedback" class="text-center font-black text-xl min-h-[30px] my-2"></div>
+
+        <div class="flex items-center justify-center gap-3 pt-1">
+          <button id="oh-clear-btn" onclick="clearOrdheltenSlots()" class="bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold px-5 py-3 rounded-2xl border border-slate-300">
+            ↺ Tøm
+          </button>
+          <button id="oh-next-btn" onclick="nextOrdheltenWord()" class="hidden bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black px-7 py-3 rounded-2xl shadow-md text-lg">
+            Neste ➔
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 3. MODUL: ORDJAKTEN (Lytt & finn | Les & match | Sant eller usant)  -->
+    <!-- =================================================================== -->
+    <section id="view-ordjakten" class="hidden space-y-4">
+      <!-- Modusvelger (3 tydelige knapper) -->
+      <div class="bg-white rounded-3xl p-3 border-2 border-amber-200 shadow-sm space-y-2.5">
+        <div class="grid grid-cols-3 gap-2">
+          <button id="oj-mode-audio" onclick="setOrdjaktenMode('audio')" class="py-2.5 px-2 rounded-2xl font-black text-xs sm:text-sm border-2 transition">🔊 Lytt &amp; finn</button>
+          <button id="oj-mode-match" onclick="setOrdjaktenMode('match')" class="py-2.5 px-2 rounded-2xl font-black text-xs sm:text-sm border-2 transition">🖼️ Les &amp; match</button>
+          <button id="oj-mode-tf" onclick="setOrdjaktenMode('tf')" class="py-2.5 px-2 rounded-2xl font-black text-xs sm:text-sm border-2 transition">✅ Sant / usant</button>
+        </div>
+        <!-- Under-temaer (vises kun for Lytt & finn) -->
+        <div id="oj-theme-bar" class="flex flex-wrap gap-1.5 pt-1"></div>
+      </div>
+
+      <!-- Oppgavekort -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border-2 border-amber-200 shadow-md">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <div class="flex items-center gap-2">
+            <span id="oj-theme-title" class="bg-amber-100 text-amber-900 text-xs sm:text-sm font-extrabold px-3 py-1 rounded-full">Tema</span>
+            <span id="oj-score-text" class="text-sm font-bold text-slate-500">Riktige: 0</span>
+          </div>
+          <div class="flex items-center gap-2 bg-sky-50 border border-sky-200 px-3 py-1 rounded-2xl">
+            <div id="oj-avatar-stage" class="w-11 h-11"></div>
+            <span id="oj-avatar-label" class="text-xs font-extrabold text-sky-950 hidden sm:inline">Lesehelt</span>
+          </div>
+        </div>
+
+        <div id="oj-prompt-area" class="flex flex-col items-center justify-center gap-3 my-4 text-center"></div>
+        <div id="oj-options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-2xl mx-auto my-5"></div>
+        <div id="oj-feedback" class="text-center font-black text-xl min-h-[30px]"></div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 4. MODUL: LYDBOKA (Skriveverksted med ord-opplesning)               -->
+    <!-- =================================================================== -->
+    <section id="view-lydboka" class="hidden space-y-4">
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border-2 border-sky-200 shadow-md">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-4">
+          <div class="flex items-center gap-2">
+            <button id="lb-mode-card" onclick="setLydbokaFree(false)" class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-extrabold border-2 transition">📋 Skrivekort</button>
+            <button id="lb-mode-free" onclick="setLydbokaFree(true)" class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-extrabold border-2 transition">✏️ Skriv fritt</button>
+          </div>
+          <div class="flex items-center gap-2 bg-sky-50 border border-sky-200 px-3 py-1 rounded-2xl">
+            <div id="lb-avatar-stage" class="w-11 h-11"></div>
+            <span id="lb-avatar-label" class="text-xs font-extrabold text-sky-950 hidden sm:inline">Lesehelt</span>
+          </div>
+        </div>
+
+        <!-- Skrivekort (skjules ved fri skriving) -->
+        <div id="lb-prompt-box" class="bg-sky-50 border-2 border-sky-200 rounded-2xl p-4 mb-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span id="lb-prompt-emoji" class="text-5xl">🐶</span>
+            <div id="lb-prompt-text" class="text-xl sm:text-2xl font-black text-slate-900">En liten hund</div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="speakLydbokaPrompt()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm">🔊 Hør</button>
+            <button onclick="nextLydbokaPrompt()" class="bg-white hover:bg-sky-100 text-sky-900 border border-sky-300 font-bold px-4 py-2.5 rounded-xl text-sm">Neste ↻</button>
+          </div>
+        </div>
+
+        <!-- Skrivefelt -->
+        <textarea id="lb-textarea" rows="4" placeholder="Skriv her… trykk mellomrom for å høre ordet" class="w-full rounded-2xl border-2 border-slate-300 focus:border-sky-500 focus:outline-none p-4 text-2xl sm:text-3xl font-bold tracking-wide text-slate-900 bg-slate-50"></textarea>
+
+        <!-- Forhåndsvisning med valgfri fargekoding -->
+        <div id="lb-colored-preview" class="mt-3 bg-slate-50 rounded-2xl p-3 border border-slate-200 min-h-[52px] flex flex-wrap items-center gap-1 text-2xl font-black"></div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 mt-4">
+          <div class="flex items-center gap-2">
+            <button onclick="speakLydbokaAll()" class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black px-5 py-3 rounded-2xl shadow">🔊 Les alt</button>
+            <button onclick="clearLydboka()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-3 rounded-2xl border border-slate-300">Tøm</button>
+          </div>
+          <button onclick="rewardLydbokaEntry()" class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black px-5 py-3 rounded-2xl shadow">⭐ Ferdig (+1)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 5. MODUL: MINECRAFT-OPPDRAG                                         -->
+    <!-- =================================================================== -->
+    <section id="view-minecraft" class="hidden space-y-4">
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border-2 border-emerald-300 shadow-md">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <h2 class="text-2xl font-black text-slate-900">⛏️ Minecraft-oppdrag</h2>
+          <span id="mc-track-badge" class="bg-emerald-100 text-emerald-900 text-xs font-extrabold px-3 py-1 rounded-full">Nivå 1</span>
+        </div>
+
+        <div id="mc-mission-card" class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 mb-4"></div>
+
+        <div class="flex flex-wrap items-center gap-3 mb-5">
+          <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-3 rounded-2xl shadow inline-flex items-center gap-2">
+            <span>📸 Last opp bilde</span>
+            <input type="file" accept="image/*" onchange="handleMinecraftUpload(event)" class="hidden" />
+          </label>
+          <button onclick="nextMinecraftMission()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-3 rounded-2xl border border-slate-300">
+            Bytt oppdrag ↻
+          </button>
+        </div>
+
+        <h3 class="text-base font-black text-slate-800 mb-2">Dine bygg:</h3>
+        <div id="mc-gallery" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- 6. MODUL: SAMLEALBUM                                                -->
+    <!-- =================================================================== -->
+    <section id="view-album" class="hidden space-y-4">
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border-2 border-amber-200 shadow-md">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <h2 class="text-2xl font-black text-slate-900">🏆 Samlealbum</h2>
+          <span id="album-unlocked-badge" class="bg-amber-100 text-amber-900 font-extrabold px-3 py-1 rounded-full text-sm">0 / 20</span>
+        </div>
+        <div id="album-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: VELG NIVÅ / LØYPE                                            -->
+  <!-- ===================================================================== -->
+  <div id="modal-tracks" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border-2 border-indigo-200 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xl font-black text-slate-900">Velg nivå</h3>
+        <button onclick="closeModal('modal-tracks')" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 font-black">✕</button>
+      </div>
+      <div id="modal-track-list" class="space-y-2.5"></div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: KARAKTERBYGGER                                               -->
+  <!-- ===================================================================== -->
+  <div id="modal-avatar" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border-2 border-sky-200 space-y-4 my-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xl font-black text-slate-900">🧑 Lag din lesehelt</h3>
+        <button onclick="closeModal('modal-avatar')" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 font-black">✕</button>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center gap-4 bg-sky-50 p-4 rounded-2xl border border-sky-200">
+        <div id="avatar-builder-preview" class="w-24 h-24 shrink-0"></div>
+        <div class="w-full space-y-2">
+          <label class="block text-xs font-extrabold uppercase text-sky-900">Navn:</label>
+          <input id="avatar-name-input" type="text" maxlength="18" placeholder="Skriv navn..." oninput="updateAvatarName(this.value)" class="w-full px-3.5 py-2 rounded-xl border-2 border-sky-300 font-extrabold text-slate-900 text-lg focus:outline-none focus:border-sky-600" />
+          <button onclick="testAvatarCheer()" class="text-xs font-bold bg-amber-400 hover:bg-amber-500 text-amber-950 px-3 py-1 rounded-lg">🙌 Test jubel!</button>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <div class="font-extrabold text-slate-700 mb-1">Type:</div>
+          <div class="grid grid-cols-3 gap-2" id="av-opt-gender"></div>
+        </div>
+        <div>
+          <div class="font-extrabold text-slate-700 mb-1">Hår:</div>
+          <div class="grid grid-cols-4 gap-2" id="av-opt-hair"></div>
+        </div>
+        <div>
+          <div class="font-extrabold text-slate-700 mb-1">Hårfarge:</div>
+          <div class="flex flex-wrap gap-2" id="av-opt-haircolor"></div>
+        </div>
+        <div>
+          <div class="font-extrabold text-slate-700 mb-1">Klær:</div>
+          <div class="grid grid-cols-3 gap-2" id="av-opt-outfit"></div>
+        </div>
+        <div>
+          <div class="font-extrabold text-slate-700 mb-1">Klesfarge:</div>
+          <div class="flex flex-wrap gap-2" id="av-opt-outfitcolor"></div>
+        </div>
+        <div>
+          <div class="font-extrabold text-slate-700 mb-1">Tilbehør:</div>
+          <div class="grid grid-cols-4 gap-2" id="av-opt-acc"></div>
+        </div>
+      </div>
+
+      <button onclick="closeModal('modal-avatar')" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-black py-3 rounded-2xl text-base shadow">Lagre ✓</button>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: MINISPILL                                                    -->
+  <!-- ===================================================================== -->
+  <div id="modal-minigames" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border-2 border-purple-300 space-y-4 max-h-[94vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🕹️</span>
+          <h3 class="text-xl font-black text-slate-900">Minispill</h3>
+          <span class="bg-purple-100 text-purple-900 text-xs font-extrabold px-2.5 py-1 rounded-full">Poletter: <span id="mg-token-count">1</span></span>
+        </div>
+        <button onclick="closeMinigameHub()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 font-black">✕</button>
+      </div>
+
+      <div id="mg-selector" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <button onclick="launchMinigame('rally')" class="bg-gradient-to-br from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white p-4 rounded-2xl shadow text-left flex flex-col justify-between gap-2">
+          <div class="text-4xl">🏎️</div>
+          <div>
+            <div class="font-black text-lg">Rallybiler</div>
+            <div class="text-xs text-rose-100">Styr inn i riktig port!</div>
+          </div>
+        </button>
+
+        <button onclick="launchMinigame('slingshot')" class="bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white p-4 rounded-2xl shadow text-left flex flex-col justify-between gap-2">
+          <div class="text-4xl">🏹</div>
+          <div>
+            <div class="font-black text-lg">Sprettert</div>
+            <div class="text-xs text-amber-100">Skyt bokstaver og lag ord!</div>
+          </div>
+        </button>
+
+        <button onclick="launchMinigame('balloons')" class="bg-gradient-to-br from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white p-4 rounded-2xl shadow text-left flex flex-col justify-between gap-2">
+          <div class="text-4xl">🎈</div>
+          <div>
+            <div class="font-black text-lg">Ord-ballonger</div>
+            <div class="text-xs text-sky-100">Sprekk riktig ballong!</div>
+          </div>
+        </button>
+      </div>
+
+      <div id="mg-arena" class="hidden"></div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: VOKSEN / LÆRER-PANEL (Tydelig skilt fra elevens visning)     -->
+  <!-- ===================================================================== -->
+  <div id="modal-adult" class="hidden fixed inset-0 z-50 bg-slate-900/65 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border-2 border-slate-300 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">👩‍🏫</span>
+          <h3 class="text-xl font-black text-slate-900">Voksen / Lærer</h3>
+        </div>
+        <button onclick="closeModal('modal-adult')" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 font-black">✕</button>
+      </div>
+
+      <!-- Faner i voksenpanelet -->
+      <div class="flex flex-wrap gap-1.5">
+        <button id="atab-settings" onclick="renderAdultTab('settings')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold border transition">⚙️ Tilpasning</button>
+        <button id="atab-words" onclick="renderAdultTab('words')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold border transition">📝 Egne ukeord</button>
+        <button id="atab-pedagogy" onclick="renderAdultTab('pedagogy')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold border transition">📚 Pedagogikk</button>
+      </div>
+
+      <div id="adult-modal-body" class="text-sm text-slate-700 space-y-4"></div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 5: EGG-KLEKKING                                                 -->
+  <!-- ===================================================================== -->
+  <div id="modal-egg" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border-2 border-emerald-300 space-y-4">
+      <h3 class="text-2xl font-black text-slate-900">Egget klekker!</h3>
+      <div id="egg-hatch-stage" class="py-4 flex flex-col items-center justify-center"></div>
+      <button onclick="closeModal('modal-egg')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl">Hurra! Legg i albumet</button>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. PEDAGOGISKE DATA & KVALITETSSIKREDE ORDLISTER (Ingen homofoner)
+       ========================================================================= */
+
+    const VOWELS = new Set(['A', 'E', 'I', 'O', 'U', 'Y', 'Æ', 'Ø', 'Å']);
+
+    const TRACKS = [
+      { id: 1, icon: '🌱', short: 'Nivå 1', title: 'Korte ord', desc: 'Lydrette ord (2–4 bokstaver) og førstebokstav.' },
+      { id: 2, icon: '🚀', short: 'Nivå 2', title: 'Leseflyt', desc: 'Lengre lydrette ord og vanlige småord.' },
+      { id: 3, icon: '⚡', short: 'Nivå 3', title: 'Dobbel konsonant', desc: 'Kort/lang vokal og vanlig ortografi.' },
+      { id: 4, icon: '👑', short: 'Nivå 4', title: 'Vanskelige lyder', desc: 'KJ, SKJ, SJ, NG, HJ, GJ og sammensatte ord.' }
+    ];
+
+    // 40 ekte, lydsjekkede og tydelig adskilte norske ord per nivå
+    const WORD_BANK = {
+      1: [
+        { word: 'SOL', emoji: '☀️' }, { word: 'BIL', emoji: '🚗' }, { word: 'MUS', emoji: '🐭' },
+        { word: 'HUS', emoji: '🏠' }, { word: 'REV', emoji: '🦊' }, { word: 'TOG', emoji: '🚂' },
+        { word: 'BÅT', emoji: '⛵' }, { word: 'KU', emoji: '🐄' }, { word: 'IS', emoji: '🍦' },
+        { word: 'SKO', emoji: '👟' }, { word: 'BOK', emoji: '📘' }, { word: 'LUE', emoji: '🧢' },
+        { word: 'ØYE', emoji: '👁️' }, { word: 'NESE', emoji: '👃' }, { word: 'FOT', emoji: '🦶' },
+        { word: 'OST', emoji: '🧀' }, { word: 'SAL', emoji: '🐴' }, { word: 'LYS', emoji: '🕯️' },
+        { word: 'MAT', emoji: '🍲' }, { word: 'DAG', emoji: '🌤️' }, { word: 'NÅL', emoji: '🪡' },
+        { word: 'RØD', emoji: '🔴' }, { word: 'BLÅ', emoji: '🔵' }, { word: 'GUL', emoji: '🟡' },
+        { word: 'TRE', emoji: '🌳' }, { word: 'BRO', emoji: '🌉' }, { word: 'SAU', emoji: '🐑' },
+        { word: 'HAI', emoji: '🦈' }, { word: 'BIE', emoji: '🐝' }, { word: 'ARM', emoji: '💪' },
+        { word: 'TÅ', emoji: '🦶' }, { word: 'HÅR', emoji: '💇' }, { word: 'ØRE', emoji: '👂' },
+        { word: 'SÅPE', emoji: '🧼' }, { word: 'BADE', emoji: '🛁' }, { word: 'LØVE', emoji: '🦁' },
+        { word: 'HANE', emoji: '🐓' }, { word: 'GAVE', emoji: '🎁' }, { word: 'MÅNE', emoji: '🌙' },
+        { word: 'ROSE', emoji: '🌹' }
+      ],
+      2: [
+        { word: 'HUND', emoji: '🐶' }, { word: 'FISK', emoji: '🐟' }, { word: 'GRIS', emoji: '🐷' },
+        { word: 'ELG', emoji: '🫎' }, { word: 'ULV', emoji: '🐺' }, { word: 'FUGL', emoji: '🐦' },
+        { word: 'STOL', emoji: '🪑' }, { word: 'BORD', emoji: '🪵' }, { word: 'LAMPE', emoji: '💡' },
+        { word: 'DØR', emoji: '🚪' }, { word: 'VIND', emoji: '💨' }, { word: 'SNØ', emoji: '❄️' },
+        { word: 'REGN', emoji: '🌧️' }, { word: 'SKY', emoji: '☁️' }, { word: 'BERG', emoji: '⛰️' },
+        { word: 'SKOG', emoji: '🌲' }, { word: 'BLOMST', emoji: '🌸' }, { word: 'EPLE', emoji: '🍎' },
+        { word: 'PÆRE', emoji: '🍐' }, { word: 'MELK', emoji: '🥛' }, { word: 'BRØD', emoji: '🍞' },
+        { word: 'KAKE', emoji: '🍰' }, { word: 'BALL', emoji: '⚽' }, { word: 'BUSS', emoji: '🚌' },
+        { word: 'FLY', emoji: '✈️' }, { word: 'SKIP', emoji: '🚢' }, { word: 'KRONE', emoji: '👑' },
+        { word: 'RING', emoji: '💍' }, { word: 'FROSK', emoji: '🐸' }, { word: 'DRAGE', emoji: '🐉' },
+        { word: 'BANAN', emoji: '🍌' }, { word: 'SITRON', emoji: '🍋' }, { word: 'TOMAT', emoji: '🍅' },
+        { word: 'POTET', emoji: '🥔' }, { word: 'BUKSE', emoji: '👖' }, { word: 'PLANET', emoji: '🪐' },
+        { word: 'KAKTUS', emoji: '🌵' }, { word: 'KAMEL', emoji: '🐪' }, { word: 'SEBRA', emoji: '🦓' },
+        { word: 'TIGER', emoji: '🐯' }
+      ],
+      3: [
+        { word: 'BAKKE', emoji: '⛰️' }, { word: 'KOPP', emoji: '☕' }, { word: 'HATT', emoji: '🎩' },
+        { word: 'PENN', emoji: '🖊️' }, { word: 'HOPPE', emoji: '🦘' }, { word: 'SOPP', emoji: '🍄' },
+        { word: 'TALL', emoji: '🔢' }, { word: 'VEGG', emoji: '🧱' }, { word: 'SENG', emoji: '🛏️' },
+        { word: 'JAKKE', emoji: '🧥' }, { word: 'SOKK', emoji: '🧦' }, { word: 'VOTT', emoji: '🧤' },
+        { word: 'SEKK', emoji: '🎒' }, { word: 'KLASSE', emoji: '🏫' }, { word: 'VENNER', emoji: '🤝' },
+        { word: 'SOMMER', emoji: '🏖️' }, { word: 'VINTER', emoji: '⛄' }, { word: 'SYKKEL', emoji: '🚲' },
+        { word: 'KLOKKE', emoji: '⏰' }, { word: 'KATT', emoji: '🐱' }, { word: 'EGG', emoji: '🥚' },
+        { word: 'BALLONG', emoji: '🎈' }, { word: 'KOFFERT', emoji: '🧳' }, { word: 'TRAPPE', emoji: '🪜' },
+        { word: 'HAMMER', emoji: '🔨' }, { word: 'TØMMER', emoji: '🪵' }, { word: 'SØPPEL', emoji: '🗑️' },
+        { word: 'KNAPP', emoji: '🔘' }, { word: 'KASSE', emoji: '📦' }, { word: 'SKATT', emoji: '💎' },
+        { word: 'BRETT', emoji: '🛹' }, { word: 'TROMME', emoji: '🥁' }, { word: 'VANN', emoji: '💧' },
+        { word: 'BRANN', emoji: '🔥' }, { word: 'TANN', emoji: '🦷' }, { word: 'GRØNN', emoji: '🟢' },
+        { word: 'NØKKEL', emoji: '🔑' }, { word: 'RAKETT', emoji: '🚀' }, { word: 'GULROT', emoji: '🥕' },
+        { word: 'BLYANT', emoji: '✏️' }
+      ],
+      4: [
+        { word: 'KJOLE', emoji: '👗' }, { word: 'SKJOLD', emoji: '🛡️' }, { word: 'SKJELL', emoji: '🐚' },
+        { word: 'SJØ', emoji: '🌊' }, { word: 'SJAKK', emoji: '♟️' }, { word: 'HJERTE', emoji: '❤️' },
+        { word: 'HJELM', emoji: '⛑️' }, { word: 'HJUL', emoji: '🛞' }, { word: 'STJERNE', emoji: '⭐' },
+        { word: 'KONGE', emoji: '🤴' }, { word: 'DRONNING', emoji: '👸' }, { word: 'SLANGE', emoji: '🐍' },
+        { word: 'FINGER', emoji: '👆' }, { word: 'VINGER', emoji: '🪽' }, { word: 'GJERDE', emoji: '🚧' },
+        { word: 'BJØRN', emoji: '🐻' }, { word: 'FJELL', emoji: '🏔️' }, { word: 'KJØKKEN', emoji: '🍳' },
+        { word: 'SKJORTE', emoji: '👔' }, { word: 'SJIRAFF', emoji: '🦒' }, { word: 'KJENGURU', emoji: '🦘' },
+        { word: 'PINGVIN', emoji: '🐧' }, { word: 'ELEFANT', emoji: '🐘' }, { word: 'KROKODILLE', emoji: '🐊' },
+        { word: 'SOMMERFUGL', emoji: '🦋' }, { word: 'REGNBUE', emoji: '🌈' }, { word: 'SYKKELHJELM', emoji: '🚴' },
+        { word: 'SNØMANN', emoji: '☃️' }, { word: 'SJOKOLADE', emoji: '🍫' }, { word: 'SKJEGG', emoji: '🧔' },
+        { word: 'HJERNE', emoji: '🧠' }, { word: 'GJEST', emoji: '🧑‍🤝‍🧑' }, { word: 'KJEKS', emoji: '🍪' },
+        { word: 'SKILPADDE', emoji: '🐢' }, { word: 'BRANNBIL', emoji: '🚒' }, { word: 'FOTBALL', emoji: '⚽' },
+        { word: 'ISBJØRN', emoji: '🐻‍❄️' }, { word: 'SKJERF', emoji: '🧣' }, { word: 'VISKELÆR', emoji: '🧽' },
+        { word: 'TALLERKEN', emoji: '🍽️' }
+      ]
+    };
+
+    // Oppgavekort for LYDBOKA
+    const LYDBOKA_PROMPTS = {
+      1: [
+        { emoji: '☀️', text: 'Sol og is', speak: 'Sol og is.' },
+        { emoji: '🚗', text: 'En rød bil', speak: 'En rød bil.' },
+        { emoji: '🐭', text: 'En liten mus', speak: 'En liten mus.' },
+        { emoji: '⛵', text: 'En blå båt', speak: 'En blå båt.' },
+        { emoji: '🦁', text: 'En gul løve', speak: 'En gul løve.' },
+        { emoji: '🏠', text: 'Et fint hus', speak: 'Et fint hus.' }
+      ],
+      2: [
+        { emoji: '🐶', text: 'Hunden liker å leke.', speak: 'Hunden liker å leke.' },
+        { emoji: '🌲', text: 'Vi går tur i skogen.', speak: 'Vi går tur i skogen.' },
+        { emoji: '🍎', text: 'Jeg spiser et rødt eple.', speak: 'Jeg spiser et rødt eple.' },
+        { emoji: '🐸', text: 'Frosken hopper i vannet.', speak: 'Frosken hopper i vannet.' },
+        { emoji: '🚌', text: 'Bussen kjører til byen.', speak: 'Bussen kjører til byen.' },
+        { emoji: '🐉', text: 'Dragen flyr høyt over berget.', speak: 'Dragen flyr høyt over berget.' }
+      ],
+      3: [
+        { emoji: '⛰️', text: 'Vi aker ned den bratte bakken.', speak: 'Vi aker ned den bratte bakken.' },
+        { emoji: '☕', text: 'Det er varm kakao i koppen.', speak: 'Det er varm kakao i koppen.' },
+        { emoji: '🎒', text: 'Sekken er full av bøker og blyanter.', speak: 'Sekken er full av bøker og blyanter.' },
+        { emoji: '⛄', text: 'Om vinteren bruker vi jakke og votter.', speak: 'Om vinteren bruker vi jakke og votter.' },
+        { emoji: '🔑', text: 'Jeg fant en blank nøkkel på trappa.', speak: 'Jeg fant en blank nøkkel på trappa.' }
+      ],
+      4: [
+        { emoji: '🦒', text: 'Sjiraffen spiser blader høyt oppe i treet.', speak: 'Sjiraffen spiser blader høyt oppe i treet.' },
+        { emoji: '🛡️', text: 'Ridderen har både skjold og hjelm.', speak: 'Ridderen har både skjold og hjelm.' },
+        { emoji: '🌈', text: 'Regnbuen lyser opp etter regnet.', speak: 'Regnbuen lyser opp etter regnet.' },
+        { emoji: '🦋', text: 'En stor sommerfugl lander på blomsten.', speak: 'En stor sommerfugl lander på blomsten.' },
+        { emoji: '🍫', text: 'På kjøkkenet lukter det varm sjokolade.', speak: 'På kjøkkenet lukter det varm sjokolade.' }
+      ]
+    };
+
+    // ORDJAKTEN: 7 temaer – alle kontrollert mot homofoner (f.eks. IKKE og/å, det/de, hjemme/gjemme, hjul/jul)
+    const ORDJAKTEN_THEMES = [
+      {
+        id: 'first_letter',
+        icon: '🖼️',
+        title: 'Førstebokstav',
+        minTrack: 1,
+        type: 'first_letter',
+        items: [
+          { emoji: '☀️', rest: 'OL', answer: 'S', distractors: ['M', 'L', 'A'] },
+          { emoji: '🚗', rest: 'IL', answer: 'B', distractors: ['P', 'S', 'O'] },
+          { emoji: '🐭', rest: 'US', answer: 'M', distractors: ['N', 'K', 'E'] },
+          { emoji: '🏠', rest: 'US', answer: 'H', distractors: ['B', 'T', 'I'] },
+          { emoji: '🦊', rest: 'EV', answer: 'R', distractors: ['L', 'V', 'U'] },
+          { emoji: '🚂', rest: 'OG', answer: 'T', distractors: ['D', 'K', 'A'] },
+          { emoji: '⛵', rest: 'ÅT', answer: 'B', distractors: ['M', 'F', 'Ø'] },
+          { emoji: '🍦', rest: 'S', answer: 'I', distractors: ['E', 'A', 'O'] },
+          { emoji: '🍎', rest: 'PLE', answer: 'E', distractors: ['I', 'O', 'K'] },
+          { emoji: '🦁', rest: 'ØVE', answer: 'L', distractors: ['R', 'S', 'Å'] },
+          { emoji: '🍌', rest: 'ANAN', answer: 'B', distractors: ['P', 'M', 'E'] },
+          { emoji: '🐸', rest: 'ROSK', answer: 'F', distractors: ['V', 'S', 'U'] },
+          { emoji: '🐘', rest: 'LEFANT', answer: 'E', distractors: ['A', 'I', 'T'] },
+          { emoji: '🦆', rest: 'ND', answer: 'A', distractors: ['O', 'E', 'N'] },
+          { emoji: '🦉', rest: 'GLE', answer: 'U', distractors: ['O', 'Y', 'G'] },
+          { emoji: '👑', rest: 'RONE', answer: 'K', distractors: ['G', 'T', 'Å'] }
+        ]
+      },
+      {
+        id: 'high_freq_1',
+        icon: '⭐',
+        title: 'Småord 1',
+        minTrack: 1,
+        type: 'word_audio',
+        // Bevisst utelatt: Å (lik OG), DE (lik DET), ENN (lik EN), ETT (lik ET)
+        words: ['OG', 'ER', 'DET', 'PÅ', 'EN', 'ET', 'TIL', 'SOM', 'HAR', 'MED', 'FOR', 'AV', 'OM', 'VI', 'DU', 'DEG', 'MEG', 'SEG', 'HAN', 'HUN', 'DEN', 'DER', 'HER', 'NÅ']
+      },
+      {
+        id: 'high_freq_2',
+        icon: '🚀',
+        title: 'Småord 2',
+        minTrack: 2,
+        type: 'word_audio',
+        words: ['IKKE', 'SKAL', 'KAN', 'VIL', 'HVA', 'HVOR', 'HVEM', 'NÅR', 'HVORFOR', 'ELLER', 'MEN', 'FORDI', 'MELLOM', 'UNDER', 'OVER', 'GJENNOM', 'ALLTID', 'ALDRI', 'KANSKJE', 'SAMMEN', 'ETTER', 'BARE', 'MANGE', 'NOEN']
+      },
+      {
+        id: 'double_cons',
+        icon: '⚡',
+        title: 'Dobbel konsonant',
+        minTrack: 3,
+        type: 'minimal_pairs',
+        // 20 ekte, vanlige norske minimalpar med tydelig forskjell i uttale
+        pairs: [
+          ['BAKKE', 'BAKE'], ['TAKK', 'TAK'], ['PENN', 'PEN'], ['HATT', 'HAT'],
+          ['MATTE', 'MATE'], ['LESSE', 'LESE'], ['LEKKE', 'LEKE'], ['VISSE', 'VISE'],
+          ['SPISSE', 'SPISE'], ['SLITTE', 'SLITE'], ['FINN', 'FIN'], ['MØTTE', 'MØTE'],
+          ['STØTTE', 'STØTE'], ['LUKKE', 'LUKE'], ['SETTE', 'SETE'], ['HETTE', 'HETE'],
+          ['FLYTTE', 'FLYTE'], ['KNYTTE', 'KNYTE'], ['SKYTTE', 'SKYTE'], ['VEGG', 'VEG']
+        ]
+      },
+      {
+        id: 'kj_sound',
+        icon: '👗',
+        title: 'KJ-lyden',
+        minTrack: 4,
+        type: 'word_audio',
+        words: ['KJOLE', 'KJØKKEN', 'KJØTT', 'KJØPE', 'KJØRE', 'KJÆRE', 'KJEMPE', 'KJEDELIG', 'KJELLER', 'KJENT', 'KJERNE', 'KJIP', 'KJEKS', 'KJENGURU', 'KJEDE', 'KJENNE', 'KJØLESKAP', 'KJEMIKER']
+      },
+      {
+        id: 'sj_skj_sound',
+        icon: '🛡️',
+        title: 'SJ & SKJ',
+        minTrack: 4,
+        type: 'word_audio',
+        words: ['SKJOLD', 'SKJELL', 'SKJORTE', 'SKJE', 'SKJEGG', 'SKJØNN', 'SJØ', 'SJAKK', 'SJIRAFF', 'SJOKOLADE', 'SJÅFØR', 'SJELDEN', 'SJU', 'SJARM', 'SKJØRT', 'SKJERF', 'SKJULE', 'SJEL']
+      },
+      {
+        id: 'ng_hj_gj',
+        icon: '❤️',
+        title: 'NG / HJ / GJ',
+        minTrack: 4,
+        type: 'word_audio',
+        // Bevisst utelatt: GJEMME (lik HJEMME), JUL (lik HJUL), GJERNE (lik HJERNE), GJORT (lik HJORT)
+        words: ['HJERTE', 'HJELM', 'HJUL', 'HJERNE', 'HJELPE', 'HJEMME', 'GJERDE', 'GJEST', 'GJØRME', 'KONGE', 'SENG', 'RING', 'SLANGE', 'FINGER', 'STJERNE', 'BJØRN', 'FJELL', 'SANG', 'LANG', 'TUNG']
+      }
+    ];
+
+    // SANT ELLER USANT: Leseforståelse tilpasset hvert nivå
+    const TRUE_FALSE_BANK = {
+      1: [
+        { text: 'En sol er gul.', answer: true },
+        { text: 'En bil kan fly i lufta.', answer: false },
+        { text: 'En katt sier mjau.', answer: true },
+        { text: 'Is er varm som ild.', answer: false },
+        { text: 'En båt går på vann.', answer: true },
+        { text: 'En ku bor i et tre.', answer: false },
+        { text: 'En mus er mindre enn en løve.', answer: true },
+        { text: 'Vi spiser sko til frokost.', answer: false },
+        { text: 'En hai bor i havet.', answer: true },
+        { text: 'En bok kan vi lese i.', answer: true }
+      ],
+      2: [
+        { text: 'En fisk kan svømme under vann.', answer: true },
+        { text: 'Snø faller som regel midt på sommeren.', answer: false },
+        { text: 'Et eple vokser på et tre.', answer: true },
+        { text: 'En hund har seks lange bein.', answer: false },
+        { text: 'Melk kommer fra kua.', answer: true },
+        { text: 'En fugl har vinger og nebb.', answer: true },
+        { text: 'En sykkel har fire store bilhjul.', answer: false },
+        { text: 'Regn gjør bakken våt.', answer: true },
+        { text: 'En frosk kan både hoppe og svømme.', answer: true },
+        { text: 'En kamel bor på Nordpolen.', answer: false }
+      ],
+      3: [
+        { text: 'Vi bruker jakke og votter når det er kaldt ute.', answer: true },
+        { text: 'En kaffekopp er større enn et vanlig hus.', answer: false },
+        { text: 'Om vinteren kan vi ake ned en bakke med snø.', answer: true },
+        { text: 'En hammer brukes til å spise suppe med.', answer: false },
+        { text: 'En sekk blir tyngre når du fyller den med bøker.', answer: true },
+        { text: 'Et egg er mykt som en pute.', answer: false },
+        { text: 'Alle venner må ha lik farge på sokkene.', answer: false },
+        { text: 'En klokke viser hva klokka er.', answer: true },
+        { text: 'Vi bruker nøkkel for å låse opp en dør.', answer: true },
+        { text: 'En brannbil rykker ut når det brenner.', answer: true }
+      ],
+      4: [
+        { text: 'En sjiraff har lang hals for å nå blader høyt oppe i trærne.', answer: true },
+        { text: 'En isbjørn bor i ørkenen fordi den liker sterk varme.', answer: false },
+        { text: 'Det er lurt å bruke sykkelhjelm for å beskytte hodet.', answer: true },
+        { text: 'En sommerfugl starter livet sitt som en larve.', answer: true },
+        { text: 'En krokodille er en liten fugl som bygger reir i grantrær.', answer: false },
+        { text: 'En regnbue kan dukke opp når sola skinner mens det regner.', answer: true },
+        { text: 'På kjøkkenet pleier vi å parkere brannbiler og traktorer.', answer: false },
+        { text: 'En pingvin er en fugl som er kjempeflink til å svømme.', answer: true },
+        { text: 'Et skjold ble brukt av riddere for å beskytte seg.', answer: true },
+        { text: 'Stjernene på himmelen synes best midt på dagen i sterkt solskinn.', answer: false }
+      ]
+    };
+
+    const MINECRAFT_MISSIONS = {
+      1: [
+        { title: 'Bygg et lite hus', desc: 'Bygg et hus med dør, vindu og tak.' },
+        { title: 'Bygg en båt ved brygga', desc: 'Lag en brygge og sett ut en båt på vannet.' },
+        { title: 'Lag et gjerde til sau og ku', desc: 'Bygg en innhegning med port.' }
+      ],
+      2: [
+        { title: 'Bygg en bro over elva', desc: 'Lag en trygg bro med rekkverk over vannet.' },
+        { title: 'Bygg et utkikkstårn', desc: 'Lag et høyt tårn med stige og fakler på toppen.' }
+      ],
+      3: [
+        { title: 'Bygg et klasserom', desc: 'Lag et rom med tavle, pulter og bokhyller.' },
+        { title: 'Bygg en vinterhytte', desc: 'Finn snø og bygg en varm hytte med peis.' }
+      ],
+      4: [
+        { title: 'Bygg en ridderborg med skjold-banner', desc: 'Lag borgmur, tårn og et eget banner.' },
+        { title: 'Bygg en romrakett', desc: 'Lag en utskytningsrampe og en rakett mot stjernene.' }
+      ]
+    };
+
+    const MONSTERS = [
+      { id: 1, name: 'Bokstav-Bob', color: '#34d399', eyes: 1, horns: true },
+      { id: 2, name: 'Vokal-Vivi', color: '#f87171', eyes: 2, horns: false },
+      { id: 3, name: 'Konsonant-Knut', color: '#60a5fa', eyes: 2, horns: true },
+      { id: 4, name: 'Stjerne-Siri', color: '#fbbf24', eyes: 3, horns: false },
+      { id: 5, name: 'Lese-Lasse', color: '#a78bfa', eyes: 1, horns: false },
+      { id: 6, name: 'Ord-Oda', color: '#f472b6', eyes: 2, horns: true },
+      { id: 7, name: 'Rim-Rolf', color: '#2dd4bf', eyes: 2, horns: false },
+      { id: 8, name: 'Klang-Kari', color: '#fb923c', eyes: 1, horns: true },
+      { id: 9, name: 'Grafem-Gunnar', color: '#818cf8', eyes: 3, horns: true },
+      { id: 10, name: 'Eventyr-Ella', color: '#4ade80', eyes: 2, horns: false },
+      { id: 11, name: 'Bok-Bjarne', color: '#38bdf8', eyes: 2, horns: true },
+      { id: 12, name: 'Setnings-Sofie', color: '#e879f9', eyes: 1, horns: false },
+      { id: 13, name: 'Mester-Mikkel', color: '#facc15', eyes: 2, horns: true },
+      { id: 14, name: 'Sprettert-Sam', color: '#fb7185', eyes: 3, horns: false },
+      { id: 15, name: 'Rally-Rikke', color: '#ef4444', eyes: 2, horns: true },
+      { id: 16, name: 'Trolle-Trygve', color: '#10b981', eyes: 1, horns: true },
+      { id: 17, name: 'Fjell-Frida', color: '#6366f1', eyes: 2, horns: false },
+      { id: 18, name: 'Skjold-Sverre', color: '#0ea5e9', eyes: 2, horns: true },
+      { id: 19, name: 'Stjerne-Storm', color: '#d946ef', eyes: 3, horns: true },
+      { id: 20, name: 'Gull-Guro', color: '#eab308', eyes: 2, horns: true }
+    ];
+
+    /* =========================================================================
+       2. TILSTAND & LAGRING
+       ========================================================================= */
+
+    const DEFAULT_STATE = {
+      stars: 0,
+      eggProgress: 0,
+      minigameTokens: 1,
+      activeTrack: 2,      // Fint utgangspunkt for 4. trinn – eleven bytter fritt
+      uppercase: false,    // Små bokstaver som standard for 4. trinn
+      colorCoding: true,   // Vokal (rød) / konsonant (blå) kan slås av i Voksen-menyen
+      speechRate: 0.92,
+      customWords: [],
+      useCustomWords: false,
+      unlockedMonsters: [],
+      avatar: {
+        name: 'Lesehelt',
+        gender: 'neutral',
+        hair: 'short',
+        hairColor: '#78350f',
+        outfit: 'sweater',
+        outfitColor: '#2563eb',
+        accessory: 'none'
+      },
+      mcMissionIdx: 0
+    };
+
+    let state = loadState();
+    let currentView = 'view-home';
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem('lesetrening_v3_state') || localStorage.getItem('lesetrening_v2_state');
+        if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+        const parsed = JSON.parse(raw);
+        return {
+          ...JSON.parse(JSON.stringify(DEFAULT_STATE)),
+          ...parsed,
+          avatar: { ...DEFAULT_STATE.avatar, ...(parsed.avatar || {}) }
+        };
+      } catch (e) {
+        return JSON.parse(JSON.stringify(DEFAULT_STATE));
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem('lesetrening_v3_state', JSON.stringify(state));
+      } catch (e) {}
+      updateAllUI();
+    }
+
+    function formatText(str) {
+      if (!str) return '';
+      return state.uppercase ? str.toUpperCase() : str.toLowerCase();
+    }
+
+    function getActiveWordList() {
+      if (state.useCustomWords && state.customWords.length >= 4) {
+        return state.customWords.map(w => ({ word: w.toUpperCase(), emoji: '📝' }));
+      }
+      return WORD_BANK[state.activeTrack] || WORD_BANK[2];
+    }
+
+    function tileColorClass(ch) {
+      if (!state.colorCoding) return 'tile-neutral';
+      const up = (ch || '').toUpperCase();
+      return VOWELS.has(up) ? 'tile-vowel' : 'tile-consonant';
+    }
+
+    /* =========================================================================
+       3. TRYGG NORSK TALESYNTESE & LYDEFFEKTER (Ingen isolerte bokstavfonemer)
+       ========================================================================= */
+
+    let speechWatchdog = null;
+
+    function speakWord(text) {
+      if (!text || !('speechSynthesis' in window)) return;
+      try {
+        window.speechSynthesis.cancel();
+        if (speechWatchdog) clearTimeout(speechWatchdog);
+
+        setTimeout(() => {
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.lang = 'nb-NO';
+          utter.rate = state.speechRate || 0.92;
+          utter.pitch = 1.02;
+
+          const voices = window.speechSynthesis.getVoices();
+          const noVoice = voices.find(v => v.lang && (v.lang.toLowerCase().includes('nb') || v.lang.toLowerCase().includes('no')));
+          if (noVoice) utter.voice = noVoice;
+
+          utter.onend = () => { if (speechWatchdog) clearTimeout(speechWatchdog); };
+          utter.onerror = () => { if (speechWatchdog) clearTimeout(speechWatchdog); };
+
+          speechWatchdog = setTimeout(() => {
+            try { window.speechSynthesis.cancel(); } catch (e) {}
+          }, 5500);
+
+          window.speechSynthesis.speak(utter);
+        }, 35);
+      } catch (e) {}
+    }
+
+    let audioCtx = null;
+    function playTone(freq, type = 'sine', duration = 0.12, gainVal = 0.11) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playPop() { playTone(520, 'sine', 0.07, 0.09); }
+    function playSuccessSound() {
+      playTone(523.25, 'triangle', 0.13, 0.13);
+      setTimeout(() => playTone(659.25, 'triangle', 0.13, 0.13), 100);
+      setTimeout(() => playTone(783.99, 'triangle', 0.22, 0.15), 200);
+    }
+    function playGentleError() { playTone(230, 'sine', 0.16, 0.09); }
+
+    /* =========================================================================
+       4. KARAKTERBYGGER & ANIMERT ELEVFIGUR
+       ========================================================================= */
+
+    function renderAvatarSVG(av = state.avatar, extraClass = '') {
+      const skin = '#fde68a';
+      const hairCol = av.hairColor || '#78350f';
+      const outfitCol = av.outfitColor || '#2563eb';
+
+      let backHair = '';
+      if (av.hair === 'long') {
+        backHair = `<rect x="34" y="34" width="52" height="54" rx="20" fill="${hairCol}" />`;
+      } else if (av.hair === 'braids') {
+        backHair = `<rect x="28" y="42" width="12" height="48" rx="6" fill="${hairCol}" /><rect x="80" y="42" width="12" height="48" rx="6" fill="${hairCol}" />`;
+      }
+
+      let topHair = `<path d="M36 42 Q60 16 84 42 Q76 28 60 28 Q44 28 36 42 Z" fill="${hairCol}" />`;
+      if (av.hair === 'spiky') {
+        topHair = `<polygon points="36,42 42,20 52,34 60,16 68,34 78,20 84,42" fill="${hairCol}" />`;
+      } else if (av.hair === 'long' || av.hair === 'braids') {
+        topHair = `<path d="M35 44 Q60 16 85 44 Q72 32 60 32 Q48 32 35 44 Z" fill="${hairCol}" />`;
+      }
+
+      const cape = av.outfit === 'cape' ? `<polygon points="34,66 86,66 96,112 24,112" fill="#dc2626" opacity="0.9" />` : '';
+      const lashes = av.gender === 'girl'
+        ? `<line x1="48" y1="45" x2="45" y2="42" stroke="#1e293b" stroke-width="2" /><line x1="72" y1="45" x2="75" y2="42" stroke="#1e293b" stroke-width="2" />`
+        : '';
+
+      let acc = '';
+      if (av.accessory === 'glasses') {
+        acc = `<circle cx="51" cy="48" r="7" fill="none" stroke="#1e293b" stroke-width="2.5" /><circle cx="69" cy="48" r="7" fill="none" stroke="#1e293b" stroke-width="2.5" /><line x1="58" y1="48" x2="62" y2="48" stroke="#1e293b" stroke-width="2.5" />`;
+      } else if (av.accessory === 'cap') {
+        acc = `<path d="M36 35 Q60 18 84 35 Z" fill="#f59e0b" /><rect x="36" y="32" width="56" height="6" rx="3" fill="#d97706" />`;
+      } else if (av.accessory === 'beanie') {
+        acc = `<path d="M35 38 Q60 14 85 38 Z" fill="#10b981" /><circle cx="60" cy="17" r="6" fill="#fbbf24" />`;
+      }
+
+      const hoodiePocket = av.outfit === 'hoodie' ? `<rect x="48" y="84" width="24" height="12" rx="4" fill="rgba(0,0,0,0.18)" />` : '';
+
+      return `
+        <svg viewBox="0 0 120 120" class="w-full h-full overflow-visible ${extraClass}">
+          ${cape}${backHair}
+          <rect class="arm-left" x="24" y="66" width="14" height="32" rx="7" fill="${outfitCol}" />
+          <rect class="arm-right" x="82" y="66" width="14" height="32" rx="7" fill="${outfitCol}" />
+          <rect x="38" y="64" width="44" height="42" rx="14" fill="${outfitCol}" />
+          ${hoodiePocket}
+          <circle cx="60" cy="46" r="22" fill="${skin}" stroke="#f59e0b" stroke-width="1.5" />
+          ${topHair}
+          <circle cx="51" cy="48" r="3.2" fill="#1e293b" />
+          <circle cx="69" cy="48" r="3.2" fill="#1e293b" />
+          ${lashes}
+          <path d="M51 56 Q60 64 69 56" fill="none" stroke="#1e293b" stroke-width="3" stroke-linecap="round" />
+          ${acc}
+        </svg>
+      `;
+    }
+
+    function triggerAvatarAnim(cls) {
+      ['oh-avatar-stage', 'lb-avatar-stage', 'oj-avatar-stage', 'avatar-builder-preview'].forEach(id => {
+        const el = document.getElementById(id);
+        const svg = el && el.querySelector('svg');
+        if (!svg) return;
+        svg.classList.remove('avatar-cheer', 'avatar-nod');
+        void svg.offsetWidth;
+        svg.classList.add(cls);
+      });
+    }
+    function triggerAvatarCheer() { triggerAvatarAnim('avatar-cheer'); }
+    function triggerAvatarNod() { triggerAvatarAnim('avatar-nod'); }
+
+    function openAvatarModal() {
+      document.getElementById('avatar-name-input').value = state.avatar.name || 'Lesehelt';
+      renderAvatarBuilderControls();
+      document.getElementById('modal-avatar').classList.remove('hidden');
+    }
+    function updateAvatarName(val) { state.avatar.name = val.trim() || 'Lesehelt'; saveState(); }
+    function setAvatarProp(key, val) { playPop(); state.avatar[key] = val; saveState(); renderAvatarBuilderControls(); }
+    function testAvatarCheer() { playSuccessSound(); triggerAvatarCheer(); }
+
+    function renderAvatarBuilderControls() {
+      document.getElementById('avatar-builder-preview').innerHTML = renderAvatarSVG(state.avatar);
+      const mkBtn = (key, list, cls = 'py-2 px-2 text-xs sm:text-sm') => list.map(it => `
+        <button onclick="setAvatarProp('${key}','${it.id}')" class="${cls} rounded-xl font-bold border-2 ${state.avatar[key] === it.id ? 'bg-sky-100 border-sky-500 text-sky-900' : 'bg-slate-50 border-slate-200'}">${it.label}</button>
+      `).join('');
+
+      document.getElementById('av-opt-gender').innerHTML = mkBtn('gender', [{ id: 'boy', label: '👦 Gutt' }, { id: 'girl', label: '👧 Jente' }, { id: 'neutral', label: '🧒 Fri' }]);
+      document.getElementById('av-opt-hair').innerHTML = mkBtn('hair', [{ id: 'short', label: 'Kort' }, { id: 'spiky', label: 'Pigg' }, { id: 'long', label: 'Langt' }, { id: 'braids', label: 'Fletter' }], 'py-2 px-1 text-xs');
+      document.getElementById('av-opt-outfit').innerHTML = mkBtn('outfit', [{ id: 'sweater', label: 'Genser' }, { id: 'hoodie', label: 'Hette' }, { id: 'cape', label: 'Kappe' }]);
+      document.getElementById('av-opt-acc').innerHTML = mkBtn('accessory', [{ id: 'none', label: 'Ingen' }, { id: 'glasses', label: 'Briller' }, { id: 'cap', label: 'Caps' }, { id: 'beanie', label: 'Lue' }], 'py-2 px-1 text-xs');
+
+      const mkCol = (key, colors) => colors.map(c => `
+        <button onclick="setAvatarProp('${key}','${c}')" style="background:${c}" class="w-8 h-8 rounded-full border-2 ${state.avatar[key] === c ? 'border-slate-950 scale-110' : 'border-white shadow'}"></button>
+      `).join('');
+      document.getElementById('av-opt-haircolor').innerHTML = mkCol('hairColor', ['#78350f', '#facc15', '#1e293b', '#ea580c', '#dc2626', '#9333ea']);
+      document.getElementById('av-opt-outfitcolor').innerHTML = mkCol('outfitColor', ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#f59e0b', '#0d9488']);
+    }
+
+    /* =========================================================================
+       5. BELØNNING: STJERNER, EGG & POLETTER
+       ========================================================================= */
+
+    function addStar(amount = 1) {
+      state.stars += amount;
+      state.eggProgress += amount;
+      if (state.stars % 5 === 0) state.minigameTokens += 1;
+      if (state.eggProgress >= 5) {
+        state.eggProgress = 0;
+        hatchRandomEgg();
+      }
+      saveState();
+    }
+
+    function openEggHatchIfReady() {
+      if (state.eggProgress >= 5) {
+        state.eggProgress = 0;
+        hatchRandomEgg();
+        saveState();
+      } else {
+        playPop();
+      }
+    }
+
+    function hatchRandomEgg() {
+      const locked = MONSTERS.filter(m => !state.unlockedMonsters.includes(m.id));
+      const chosen = locked.length > 0
+        ? locked[Math.floor(Math.random() * locked.length)]
+        : MONSTERS[Math.floor(Math.random() * MONSTERS.length)];
+
+      if (!state.unlockedMonsters.includes(chosen.id)) state.unlockedMonsters.push(chosen.id);
+
+      document.getElementById('egg-hatch-stage').innerHTML = `
+        <div class="w-28 h-28 mb-2">${renderMonsterSVG(chosen)}</div>
+        <div class="text-xl font-black text-emerald-800">${chosen.name}</div>
+      `;
+      document.getElementById('modal-egg').classList.remove('hidden');
+    }
+
+    function renderMonsterSVG(m) {
+      const horns = m.horns ? `<polygon points="32,34 24,14 44,26" fill="#f59e0b" /><polygon points="88,34 96,14 76,26" fill="#f59e0b" />` : '';
+      let eyes = '';
+      if (m.eyes === 1) {
+        eyes = `<circle cx="60" cy="54" r="13" fill="#fff" /><circle cx="60" cy="54" r="6" fill="#0f172a" />`;
+      } else if (m.eyes === 2) {
+        eyes = `<circle cx="46" cy="54" r="9" fill="#fff" /><circle cx="46" cy="54" r="4.5" fill="#0f172a" /><circle cx="74" cy="54" r="9" fill="#fff" /><circle cx="74" cy="54" r="4.5" fill="#0f172a" />`;
+      } else {
+        eyes = `<circle cx="40" cy="56" r="7" fill="#fff" /><circle cx="40" cy="56" r="3.5" fill="#0f172a" /><circle cx="60" cy="50" r="8" fill="#fff" /><circle cx="60" cy="50" r="4" fill="#0f172a" /><circle cx="80" cy="56" r="7" fill="#fff" /><circle cx="80" cy="56" r="3.5" fill="#0f172a" />`;
+      }
+      return `
+        <svg viewBox="0 0 120 120" class="w-full h-full">
+          ${horns}
+          <rect x="26" y="28" width="68" height="72" rx="30" fill="${m.color}" />
+          ${eyes}
+          <path d="M44 76 Q60 88 76 76" fill="none" stroke="#0f172a" stroke-width="4" stroke-linecap="round" />
+          <rect x="38" y="96" width="14" height="12" rx="5" fill="${m.color}" />
+          <rect x="68" y="96" width="14" height="12" rx="5" fill="${m.color}" />
+        </svg>
+      `;
+    }
+
+    /* =========================================================================
+       6. NAVIGASJON, NIVÅVALG & VOKSEN-PANEL
+       ========================================================================= */
+
+    function setTrack(trackId) {
+      playPop();
+      state.activeTrack = trackId;
+      saveState();
+      closeModal('modal-tracks');
+      refreshActiveView();
+    }
+
+    function refreshActiveView() {
+      if (currentView === 'view-ordhelten') initOrdhelten();
+      else if (currentView === 'view-ordjakten') initOrdjakten();
+      else if (currentView === 'view-lydboka') initLydboka();
+      else if (currentView === 'view-minecraft') renderMinecraftView();
+    }
+
+    function openTrackModal() {
+      document.getElementById('modal-track-list').innerHTML = TRACKS.map(t => `
+        <button onclick="setTrack(${t.id})" class="w-full text-left p-4 rounded-2xl border-2 flex items-center justify-between transition ${state.activeTrack === t.id ? 'bg-indigo-50 border-indigo-500' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">${t.icon}</span>
+            <div>
+              <div class="font-black text-slate-900">${t.short}: ${t.title}</div>
+              <div class="text-xs text-slate-600">${t.desc}</div>
+            </div>
+          </div>
+          ${state.activeTrack === t.id ? '<span class="text-indigo-700 font-black">✓</span>' : ''}
+        </button>
+      `).join('');
+      document.getElementById('modal-tracks').classList.remove('hidden');
+    }
+
+    function goHome() {
+      stopAllMinigames();
+      openView('view-home');
+    }
+
+    function openView(viewId) {
+      currentView = viewId;
+      ['view-home', 'view-ordhelten', 'view-lydboka', 'view-ordjakten', 'view-minecraft', 'view-album'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      document.getElementById(viewId).classList.remove('hidden');
+
+      const homeBtn = document.getElementById('btn-home');
+      if (viewId === 'view-home') {
+        homeBtn.classList.add('hidden');
+        homeBtn.classList.remove('flex');
+      } else {
+        homeBtn.classList.remove('hidden');
+        homeBtn.classList.add('flex');
+      }
+
+      if (viewId === 'view-minecraft') renderMinecraftView();
+      if (viewId === 'view-album') renderAlbumView();
+      updateAllUI();
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    /* --- VOKSEN / LÆRER-PANEL --- */
+    function openAdultModal(tab = 'settings') {
+      renderAdultTab(tab);
+      document.getElementById('modal-adult').classList.remove('hidden');
+    }
+
+    function renderAdultTab(tab) {
+      ['settings', 'words', 'pedagogy'].forEach(t => {
+        const btn = document.getElementById(`atab-${t}`);
+        if (!btn) return;
+        btn.className = t === tab
+          ? 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold border-2 bg-indigo-600 text-white border-indigo-700 transition'
+          : 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold border-2 bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition';
+      });
+
+      const body = document.getElementById('adult-modal-body');
+
+      if (tab === 'settings') {
+        body.innerHTML = `
+          <div class="space-y-3">
+            <div class="flex items-center justify-between bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+              <div>
+                <div class="font-bold text-slate-900">Bokstavtype</div>
+                <div class="text-xs text-slate-500">Små bokstaver anbefales for 4. trinn.</div>
+              </div>
+              <button onclick="toggleCase()" class="bg-slate-800 text-white font-extrabold px-4 py-2 rounded-xl min-w-[78px]">${state.uppercase ? 'ABC' : 'abc'}</button>
+            </div>
+
+            <div class="flex items-center justify-between bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+              <div>
+                <div class="font-bold text-slate-900">Fargekoding (vokal/konsonant)</div>
+                <div class="text-xs text-slate-500">Røde vokaler og blå konsonanter som lesestøtte.</div>
+              </div>
+              <button onclick="toggleColorCoding()" class="${state.colorCoding ? 'bg-emerald-600' : 'bg-slate-400'} text-white font-extrabold px-4 py-2 rounded-xl min-w-[78px]">${state.colorCoding ? 'På' : 'Av'}</button>
+            </div>
+
+            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-900">Talehastighet</span>
+                <button onclick="speakWord('Hei! Nå skal vi lese sammen.')" class="text-xs font-extrabold bg-sky-600 text-white px-3 py-1.5 rounded-lg">🔊 Test stemme</button>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                ${[
+                  { v: 0.78, l: '🐢 Rolig' },
+                  { v: 0.92, l: '🚶 Normal' },
+                  { v: 1.08, l: '🐇 Rask' }
+                ].map(opt => `
+                  <button onclick="setSpeechRate(${opt.v})" class="py-2 rounded-xl font-bold text-xs border-2 ${Math.abs(state.speechRate - opt.v) < 0.05 ? 'bg-sky-100 border-sky-500 text-sky-900' : 'bg-white border-slate-200'}">${opt.l}</button>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-200">
+              <button onclick="resetAllProgress()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-extrabold py-2.5 rounded-2xl">
+                🗑️ Nullstill elevens fremgang på denne enheten
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (tab === 'words') {
+        const joined = (state.customWords || []).join(', ');
+        body.innerHTML = `
+          <div class="space-y-3">
+            <p class="text-slate-700">Her kan du legge inn ukas øveord (kommadelt, minst 4 ord). Når dette er slått på, brukes ordene i <strong>Ordhelten</strong> og <strong>OrdJakten (Lytt &amp; finn)</strong>.</p>
+            <textarea id="adult-custom-words" rows="3" placeholder="skole, venner, regnbue, sjokolade, sykkel, vinter" class="w-full rounded-2xl border-2 border-slate-300 p-3 font-semibold text-slate-900">${joined}</textarea>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <button onclick="saveCustomWords(true)" class="bg-violet-600 hover:bg-violet-700 text-white font-black px-4 py-2.5 rounded-xl">✨ Lagre og aktiver ukeord</button>
+              <button onclick="saveCustomWords(false)" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2.5 rounded-xl">Bruk vanlige nivåer</button>
+            </div>
+            <div class="text-xs text-slate-500">Tips: Unngå lydlike ordpar (som «hjemme» og «gjemme») i samme liste, slik at talesyntesen alltid gir ett entydig svar.</div>
+          </div>
+        `;
+      } else {
+        body.innerHTML = `
+          <div class="space-y-3 leading-relaxed">
+            <p><strong>Tanke bak opplegget:</strong> Laget som et motiverende supplement (ca. 15 minutter) til ordinær leseopplæring. Elevene velger selv nivå for å oppleve eierskap og mestring.</p>
+            <ul class="list-disc pl-5 space-y-1.5">
+              <li><strong>Nivå 1 (Korte ord):</strong> Lydrette ord på 2–4 bokstaver og visuell førstebokstav.</li>
+              <li><strong>Nivå 2 (Leseflyt):</strong> Lengre lydrette ord, høyfrekvente småord og enkle setninger.</li>
+              <li><strong>Nivå 3 (Dobbel konsonant):</strong> 20 ekte norske minimalpar (kort/lang vokal) og vanlig ortografi.</li>
+              <li><strong>Nivå 4 (Vanskelige lyder):</strong> KJ, SKJ, SJ, NG, HJ, GJ, sammensatte ord og leseforståelse.</li>
+            </ul>
+            <p><strong>Lydprinsipp:</strong> Appen spiller aldri av isolerte bokstavfonemer fra talesyntese. Talesyntesen leser kun hele, naturlige ord og setninger.</p>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-600">
+              <strong>Prototype under utvikling.</strong> Konsept og pedagogisk opplegg ved Håvard Haugen. Utviklet og kodet i samarbeid med Gemini.
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function toggleCase() {
+      playPop();
+      state.uppercase = !state.uppercase;
+      saveState();
+      renderAdultTab('settings');
+      if (currentView === 'view-ordhelten') renderOrdheltenBoard();
+      if (currentView === 'view-ordjakten') renderOrdjaktenQuestion();
+      if (currentView === 'view-lydboka') { renderLydbokaPrompt(); updateLydbokaPreview(); }
+    }
+
+    function toggleColorCoding() {
+      playPop();
+      state.colorCoding = !state.colorCoding;
+      saveState();
+      renderAdultTab('settings');
+      if (currentView === 'view-ordhelten') renderOrdheltenBoard();
+      if (currentView === 'view-lydboka') updateLydbokaPreview();
+    }
+
+    function setSpeechRate(val) {
+      playPop();
+      state.speechRate = val;
+      saveState();
+      renderAdultTab('settings');
+    }
+
+    function saveCustomWords(enable) {
+      const el = document.getElementById('adult-custom-words');
+      const raw = (el ? el.value : '').split(/[,;\n]+/).map(w => w.trim().toUpperCase()).filter(w => w.length >= 2);
+      const unique = [...new Set(raw)];
+      if (enable && unique.length < 4) {
+        alert('Legg inn minst 4 ord for å aktivere egne ukeord.');
+        return;
+      }
+      state.customWords = unique;
+      state.useCustomWords = enable;
+      saveState();
+      closeModal('modal-adult');
+      refreshActiveView();
+    }
+
+    function resetAllProgress() {
+      if (confirm('Nullstille stjerner, egg og samlefigurer på denne enheten?')) {
+        localStorage.removeItem('lesetrening_v3_state');
+        localStorage.removeItem('lesetrening_v2_state');
+        state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+        saveState();
+        closeModal('modal-adult');
+        goHome();
+      }
+    }
+
+    function updateAllUI() {
+      const track = TRACKS.find(t => t.id === state.activeTrack) || TRACKS[0];
+      document.getElementById('header-track-icon').textContent = track.icon;
+      document.getElementById('header-track-label').textContent = track.short;
+
+      document.getElementById('stat-stars').textContent = state.stars;
+      document.getElementById('stat-egg-text').textContent = `${state.eggProgress}/5`;
+      document.getElementById('bar-egg').style.width = `${(state.eggProgress / 5) * 100}%`;
+
+      document.getElementById('stat-tokens-home').textContent = state.minigameTokens;
+      const mgHome = document.getElementById('btn-minigame-home');
+      if (mgHome) {
+        if (state.minigameTokens > 0) mgHome.classList.add('minigame-ready-glow');
+        else mgHome.classList.remove('minigame-ready-glow');
+      }
+
+      document.getElementById('custom-words-pill').classList.toggle('hidden', !state.useCustomWords);
+
+      const avSVG = renderAvatarSVG(state.avatar);
+      const avName = state.avatar.name || 'Lesehelt';
+      ['header-avatar-mini', 'oh-avatar-stage', 'lb-avatar-stage', 'oj-avatar-stage'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = avSVG;
+      });
+      ['header-avatar-name', 'oh-avatar-label', 'lb-avatar-label', 'oj-avatar-label'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = avName;
+      });
+
+      const homeGrid = document.getElementById('home-track-grid');
+      if (homeGrid) {
+        homeGrid.innerHTML = TRACKS.map(t => {
+          const active = t.id === state.activeTrack;
+          return `
+            <button onclick="setTrack(${t.id})" class="p-3.5 rounded-2xl border-2 text-left transition active:scale-95 ${active ? 'bg-indigo-600 text-white border-indigo-800 shadow-md' : 'bg-slate-50 hover:bg-indigo-50 text-slate-900 border-slate-200'}">
+              <div class="flex items-center justify-between">
+                <span class="text-2xl">${t.icon}</span>
+                ${active ? '<span class="text-[11px] font-black bg-white/25 px-2 py-0.5 rounded-full">Valgt</span>' : ''}
+              </div>
+              <div class="font-black text-sm sm:text-base mt-1">${t.short}</div>
+              <div class="text-xs font-semibold ${active ? 'text-indigo-100' : 'text-slate-500'}">${t.title}</div>
+            </button>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('stat-album-count').textContent = state.unlockedMonsters.length;
+    }
+
+    /* =========================================================================
+       7. MODUL 1: ORDHELTEN (Veksler mellom «Bygg ordet» og «Manglende del»)
+       ========================================================================= */
+
+    let ohState = { list: [], index: 0, current: null, mode: 'build', placed: [], pool: [], missing: null, solved: false };
+
+    function startOrdhelten() {
+      openView('view-ordhelten');
+      initOrdhelten();
+    }
+
+    function initOrdhelten() {
+      const bank = [...getActiveWordList()];
+      ohState.list = bank.sort(() => Math.random() - 0.5);
+      ohState.index = 0;
+      loadOrdheltenWord();
+    }
+
+    function buildMissingChunkTask(word) {
+      // Finn et naturlig ortografisk fokus (KJ, SKJ, SJ, HJ, GJ, NG eller dobbel konsonant) eller en vokal
+      const patterns = ['SKJ', 'KJ', 'SJ', 'HJ', 'GJ', 'NG', 'KK', 'PP', 'TT', 'NN', 'LL', 'SS', 'MM', 'RR', 'GG'];
+      let matchStr = null;
+      let matchIdx = -1;
+
+      for (const p of patterns) {
+        const idx = word.indexOf(p);
+        if (idx !== -1 && word.length > p.length + 1) {
+          matchStr = p;
+          matchIdx = idx;
+          break;
+        }
+      }
+
+      if (!matchStr) {
+        // Velg en bokstav midt i ordet
+        matchIdx = Math.min(word.length - 1, Math.max(1, Math.floor(word.length / 2)));
+        matchStr = word[matchIdx];
+      }
+
+      let distractors = [];
+      if (matchStr.length >= 2) {
+        const pool = matchStr[0] === matchStr[1]
+          ? ['KK', 'PP', 'TT', 'NN', 'LL', 'SS', 'K', 'T', 'N']
+          : ['KJ', 'SJ', 'SKJ', 'HJ', 'GJ', 'NG', 'ST', 'TR'];
+        distractors = pool.filter(x => x !== matchStr).sort(() => Math.random() - 0.5).slice(0, 3);
+      } else {
+        const pool = VOWELS.has(matchStr)
+          ? ['A', 'E', 'I', 'O', 'U', 'Y', 'Æ', 'Ø', 'Å']
+          : ['S', 'R', 'T', 'L', 'N', 'K', 'M', 'P', 'B', 'D', 'F', 'G'];
+        distractors = pool.filter(x => x !== matchStr).sort(() => Math.random() - 0.5).slice(0, 3);
+      }
+
+      return {
+        before: word.slice(0, matchIdx),
+        answer: matchStr,
+        after: word.slice(matchIdx + matchStr.length),
+        options: [matchStr, ...distractors].sort(() => Math.random() - 0.5)
+      };
+    }
+
+    function loadOrdheltenWord() {
+      const item = ohState.list[ohState.index % ohState.list.length];
+      ohState.current = item;
+      ohState.solved = false;
+
+      // Hver 3. oppgave (eller for lange ord over 7 bokstaver) bruker «Fyll inn manglende del»
+      const useMissing = (ohState.index % 3 === 2 && item.word.length >= 4) || item.word.length >= 8;
+      ohState.mode = useMissing ? 'missing' : 'build';
+
+      if (ohState.mode === 'build') {
+        ohState.placed = new Array(item.word.length).fill(null);
+        const letters = item.word.split('');
+        const extraCount = state.activeTrack >= 2 ? 2 : 0;
+        const extras = ['E', 'S', 'R', 'T', 'L', 'K', 'A', 'N'].sort(() => Math.random() - 0.5).slice(0, extraCount);
+        ohState.pool = [...letters, ...extras].map((ch, idx) => ({ id: idx, ch, used: false })).sort(() => Math.random() - 0.5);
+        document.getElementById('oh-mode-badge').textContent = '🧩 Bygg ordet';
+        document.getElementById('oh-clear-btn').classList.remove('hidden');
+      } else {
+        ohState.missing = buildMissingChunkTask(item.word);
+        document.getElementById('oh-mode-badge').textContent = '🔎 Fyll inn som mangler';
+        document.getElementById('oh-clear-btn').classList.add('hidden');
+      }
+
+      document.getElementById('oh-progress-text').textContent = `Oppgave ${ohState.index + 1}`;
+      document.getElementById('oh-emoji').textContent = item.emoji;
+      document.getElementById('oh-feedback').textContent = '';
+      document.getElementById('oh-next-btn').classList.add('hidden');
+
+      renderOrdheltenBoard();
+      speakWord(item.word.toLowerCase());
+    }
+
+    function speakCurrentOrdhelten() {
+      if (ohState.current) speakWord(ohState.current.word.toLowerCase());
+    }
+
+    function renderOrdheltenBoard() {
+      const work = document.getElementById('oh-work-area');
+
+      if (ohState.mode === 'build') {
+        const slotsHTML = ohState.placed.map((tile, idx) => {
+          if (!tile) {
+            return `<div class="w-13 h-15 sm:w-16 sm:h-20 min-w-[50px] min-h-[60px] rounded-2xl border-2 border-dashed border-slate-400 bg-slate-50 flex items-center justify-center text-3xl font-black text-slate-300">_</div>`;
+          }
+          return `
+            <button onclick="removeOrdheltenTile(${idx})" class="w-13 h-15 sm:w-16 sm:h-20 min-w-[50px] min-h-[60px] rounded-2xl border-2 shadow-sm flex items-center justify-center text-3xl sm:text-4xl font-black transition active:scale-95 ${tileColorClass(tile.ch)}">
+              ${formatText(tile.ch)}
+            </button>
+          `;
+        }).join('');
+
+        const poolHTML = ohState.pool.map(tile => {
+          if (tile.used) {
+            return `<div class="w-13 h-15 sm:w-16 sm:h-20 min-w-[50px] min-h-[60px] rounded-2xl bg-slate-100 border border-slate-200 opacity-30"></div>`;
+          }
+          return `
+            <button onclick="pickOrdheltenTile(${tile.id})" class="w-13 h-15 sm:w-16 sm:h-20 min-w-[50px] min-h-[60px] rounded-2xl border-2 shadow-md flex items-center justify-center text-3xl sm:text-4xl font-black transition hover:-translate-y-0.5 active:scale-95 ${tileColorClass(tile.ch)}">
+              ${formatText(tile.ch)}
+            </button>
+          `;
+        }).join('');
+
+        work.innerHTML = `
+          <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 mb-6">${slotsHTML}</div>
+          <div class="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">${poolHTML}</div>
+        `;
+      } else {
+        const m = ohState.missing;
+        const filled = ohState.solved
+          ? `<span class="text-emerald-700 underline decoration-4">${formatText(m.answer)}</span>`
+          : `<span class="inline-block min-w-[44px] border-b-4 border-amber-500 text-amber-600 mx-1">?</span>`;
+
+        work.innerHTML = `
+          <div class="flex justify-center mb-6">
+            <div class="text-4xl sm:text-5xl font-black tracking-widest bg-slate-50 border-2 border-slate-200 px-6 py-4 rounded-2xl text-slate-900">
+              ${formatText(m.before)}${filled}${formatText(m.after)}
+            </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl mx-auto">
+            ${m.options.map(opt => `
+              <button onclick="pickOrdheltenChunk('${opt}', this)" class="py-4 px-3 rounded-2xl border-2 shadow-sm font-black text-2xl sm:text-3xl tracking-wider transition active:scale-95 ${opt.length === 1 ? tileColorClass(opt) : 'bg-slate-50 hover:bg-emerald-50 border-slate-300 text-slate-900'}">
+                ${formatText(opt)}
+              </button>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+
+    function pickOrdheltenChunk(chosen, btnEl) {
+      if (ohState.solved) return;
+      if (chosen === ohState.missing.answer) {
+        ohState.solved = true;
+        playSuccessSound();
+        triggerAvatarCheer();
+        renderOrdheltenBoard();
+        document.getElementById('oh-feedback').innerHTML = `<span class="text-emerald-700">🎉 Riktig! ${formatText(ohState.current.word)}</span>`;
+        document.getElementById('oh-next-btn').classList.remove('hidden');
+        speakWord(ohState.current.word.toLowerCase());
+        addStar(1);
+      } else {
+        playGentleError();
+        triggerAvatarNod();
+        btnEl.classList.add('!bg-rose-100', '!border-rose-400', '!text-rose-800');
+        document.getElementById('oh-feedback').innerHTML = `<span class="text-amber-700">Prøv en annen!</span>`;
+      }
+    }
+
+    function pickOrdheltenTile(tileId) {
+      if (ohState.solved) return;
+      const emptyIdx = ohState.placed.findIndex(x => x === null);
+      if (emptyIdx === -1) return;
+      const tile = ohState.pool.find(t => t.id === tileId);
+      if (!tile || tile.used) return;
+
+      playPop();
+      tile.used = true;
+      ohState.placed[emptyIdx] = tile;
+      renderOrdheltenBoard();
+
+      if (!ohState.placed.includes(null)) {
+        const built = ohState.placed.map(t => t.ch).join('');
+        if (built === ohState.current.word) {
+          ohState.solved = true;
+          playSuccessSound();
+          triggerAvatarCheer();
+          document.getElementById('oh-feedback').innerHTML = `<span class="text-emerald-700">🎉 Riktig! ${formatText(built)}</span>`;
+          document.getElementById('oh-next-btn').classList.remove('hidden');
+          speakWord(built.toLowerCase());
+          addStar(1);
+        } else {
+          playGentleError();
+          triggerAvatarNod();
+          document.getElementById('oh-feedback').innerHTML = `<span class="text-amber-700">Prøv en gang til!</span>`;
+        }
+      }
+    }
+
+    function removeOrdheltenTile(slotIdx) {
+      if (ohState.solved) return;
+      const tile = ohState.placed[slotIdx];
+      if (!tile) return;
+      playPop();
+      tile.used = false;
+      ohState.placed[slotIdx] = null;
+      document.getElementById('oh-feedback').textContent = '';
+      renderOrdheltenBoard();
+    }
+
+    function clearOrdheltenSlots() {
+      if (ohState.solved || ohState.mode !== 'build') return;
+      playPop();
+      ohState.placed = new Array(ohState.current.word.length).fill(null);
+      ohState.pool.forEach(t => t.used = false);
+      document.getElementById('oh-feedback').textContent = '';
+      renderOrdheltenBoard();
+    }
+
+    function nextOrdheltenWord() {
+      ohState.index += 1;
+      loadOrdheltenWord();
+    }
+
+    /* =========================================================================
+       8. MODUL 2: ORDJAKTEN (Lytt & finn | Les & match | Sant eller usant)
+       ========================================================================= */
+
+    let ojState = { mode: 'audio', themeId: 'high_freq_2', score: 0, currentQ: null, locked: false, tfIndex: 0 };
+
+    function startOrdjakten() {
+      openView('view-ordjakten');
+      initOrdjakten();
+    }
+
+    function initOrdjakten() {
+      if (state.useCustomWords && state.customWords.length >= 4) {
+        ojState.themeId = 'custom';
+      } else if (state.activeTrack === 1) {
+        ojState.themeId = 'first_letter';
+      } else if (state.activeTrack === 2) {
+        ojState.themeId = 'high_freq_2';
+      } else if (state.activeTrack === 3) {
+        ojState.themeId = 'double_cons';
+      } else {
+        ojState.themeId = 'kj_sound';
+      }
+      ojState.score = 0;
+      renderOrdjaktenControls();
+      nextOrdjaktenQuestion();
+    }
+
+    function setOrdjaktenMode(mode) {
+      playPop();
+      ojState.mode = mode;
+      renderOrdjaktenControls();
+      nextOrdjaktenQuestion();
+    }
+
+    function selectOrdjaktenTheme(id) {
+      playPop();
+      ojState.themeId = id;
+      renderOrdjaktenControls();
+      nextOrdjaktenQuestion();
+    }
+
+    function renderOrdjaktenControls() {
+      ['audio', 'match', 'tf'].forEach(m => {
+        const btn = document.getElementById(`oj-mode-${m}`);
+        if (!btn) return;
+        btn.className = ojState.mode === m
+          ? 'py-2.5 px-2 rounded-2xl font-black text-xs sm:text-sm border-2 bg-amber-500 text-white border-amber-700 shadow-sm transition'
+          : 'py-2.5 px-2 rounded-2xl font-black text-xs sm:text-sm border-2 bg-slate-50 hover:bg-amber-50 text-slate-800 border-slate-200 transition';
+      });
+
+      const bar = document.getElementById('oj-theme-bar');
+      if (ojState.mode !== 'audio') {
+        bar.classList.add('hidden');
+        return;
+      }
+      bar.classList.remove('hidden');
+
+      const themes = [...ORDJAKTEN_THEMES];
+      if (state.useCustomWords && state.customWords.length >= 4) {
+        themes.unshift({ id: 'custom', icon: '✨', title: 'Ukeord' });
+      }
+
+      bar.innerHTML = themes.map(th => {
+        const active = th.id === ojState.themeId;
+        return `
+          <button onclick="selectOrdjaktenTheme('${th.id}')" class="px-3 py-1.5 rounded-xl font-extrabold text-xs border-2 transition ${active ? 'bg-amber-100 text-amber-950 border-amber-500' : 'bg-slate-50 hover:bg-amber-50 text-slate-700 border-slate-200'}">
+            ${th.icon} ${th.title}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function nextOrdjaktenQuestion() {
+      ojState.locked = false;
+      document.getElementById('oj-feedback').textContent = '';
+      document.getElementById('oj-score-text').textContent = `Riktige: ${ojState.score}`;
+
+      if (ojState.mode === 'tf') {
+        const list = TRUE_FALSE_BANK[state.activeTrack] || TRUE_FALSE_BANK[2];
+        const item = list[ojState.tfIndex % list.length];
+        ojState.tfIndex += 1;
+        document.getElementById('oj-theme-title').textContent = '✅ Sant eller usant';
+        ojState.currentQ = { mode: 'tf', text: item.text, answer: item.answer };
+        renderOrdjaktenQuestion();
+        return;
+      }
+
+      if (ojState.mode === 'match') {
+        const bank = WORD_BANK[state.activeTrack] || WORD_BANK[2];
+        const picks = [...bank].sort(() => Math.random() - 0.5).slice(0, 4);
+        const target = picks[Math.floor(Math.random() * 4)];
+        const subMode = Math.random() < 0.5 ? 'word_to_emoji' : 'emoji_to_word';
+        document.getElementById('oj-theme-title').textContent = '🖼️ Les & match';
+        ojState.currentQ = { mode: 'match', subMode, target, options: picks };
+        renderOrdjaktenQuestion();
+        return;
+      }
+
+      // Modus: Lytt & finn
+      if (ojState.themeId === 'custom' && state.customWords.length >= 4) {
+        const pool = [...state.customWords].sort(() => Math.random() - 0.5);
+        const target = pool[0];
+        const opts = pool.slice(0, 4).sort(() => Math.random() - 0.5);
+        document.getElementById('oj-theme-title').textContent = '✨ Egne ukeord';
+        ojState.currentQ = { mode: 'word', answer: target, options: opts };
+        renderOrdjaktenQuestion();
+        speakWord(target.toLowerCase());
+        return;
+      }
+
+      const theme = ORDJAKTEN_THEMES.find(t => t.id === ojState.themeId) || ORDJAKTEN_THEMES[0];
+      document.getElementById('oj-theme-title').textContent = `${theme.icon} ${theme.title}`;
+
+      if (theme.type === 'first_letter') {
+        const item = theme.items[Math.floor(Math.random() * theme.items.length)];
+        const opts = [item.answer, ...item.distractors].sort(() => Math.random() - 0.5);
+        ojState.currentQ = {
+          mode: 'first_letter',
+          emoji: item.emoji,
+          rest: item.rest,
+          answer: item.answer,
+          fullWord: item.answer + item.rest,
+          options: opts
+        };
+      } else if (theme.type === 'minimal_pairs') {
+        const pair = theme.pairs[Math.floor(Math.random() * theme.pairs.length)];
+        const flip = Math.random() < 0.5;
+        const target = flip ? pair[0] : pair[1];
+        const other = flip ? pair[1] : pair[0];
+        const extraPairs = theme.pairs.filter(p => p !== pair).sort(() => Math.random() - 0.5).slice(0, 2);
+        const opts = [target, other, extraPairs[0][0], extraPairs[1][1]].sort(() => Math.random() - 0.5);
+        ojState.currentQ = { mode: 'word', answer: target, options: opts };
+      } else {
+        const pool = [...theme.words].sort(() => Math.random() - 0.5);
+        const target = pool[0];
+        const opts = pool.slice(0, 4).sort(() => Math.random() - 0.5);
+        ojState.currentQ = { mode: 'word', answer: target, options: opts };
+      }
+
+      renderOrdjaktenQuestion();
+      if (ojState.currentQ.mode === 'word') speakWord(ojState.currentQ.answer.toLowerCase());
+    }
+
+    function renderOrdjaktenQuestion() {
+      const q = ojState.currentQ;
+      const promptArea = document.getElementById('oj-prompt-area');
+      const grid = document.getElementById('oj-options-grid');
+
+      if (q.mode === 'tf') {
+        promptArea.innerHTML = `
+          <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl px-6 py-5 max-w-xl w-full">
+            <div class="text-2xl sm:text-3xl font-black text-slate-900 leading-snug">${state.uppercase ? q.text.toUpperCase() : q.text}</div>
+          </div>
+          <button onclick="speakWord('${q.text.replace(/'/g, '')}')" class="text-xs font-extrabold text-amber-800 bg-amber-100 hover:bg-amber-200 px-3.5 py-1.5 rounded-xl">🔊 Les høyt (hjelp)</button>
+        `;
+        grid.innerHTML = `
+          <button onclick="checkOrdjaktenTF(true, this)" class="min-h-[82px] rounded-2xl border-2 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-black text-2xl shadow-sm active:scale-95 transition">✅ Sant</button>
+          <button onclick="checkOrdjaktenTF(false, this)" class="min-h-[82px] rounded-2xl border-2 border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-900 font-black text-2xl shadow-sm active:scale-95 transition">❌ Usant</button>
+        `;
+        return;
+      }
+
+      if (q.mode === 'match') {
+        if (q.subMode === 'word_to_emoji') {
+          promptArea.innerHTML = `
+            <div class="text-4xl sm:text-5xl font-black tracking-wide text-slate-900 bg-amber-50 border-2 border-amber-200 px-8 py-4 rounded-2xl">${formatText(q.target.word)}</div>
+            <button onclick="speakWord('${q.target.word.toLowerCase()}')" class="text-xs font-extrabold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-xl">🔊 Hjelp</button>
+          `;
+          grid.innerHTML = q.options.map(opt => `
+            <button onclick="checkOrdjaktenMatch('${opt.word}', this)" class="min-h-[92px] rounded-2xl border-2 border-slate-200 bg-slate-50 hover:bg-amber-50 text-5xl sm:text-6xl shadow-sm active:scale-95 transition flex items-center justify-center">
+              ${opt.emoji}
+            </button>
+          `).join('');
+        } else {
+          promptArea.innerHTML = `
+            <div class="text-7xl sm:text-8xl">${q.target.emoji}</div>
+          `;
+          grid.innerHTML = q.options.map(opt => `
+            <button onclick="checkOrdjaktenMatch('${opt.word}', this)" class="min-h-[78px] px-4 py-4 rounded-2xl border-2 border-slate-300 bg-slate-50 hover:bg-amber-50 text-slate-900 font-black ${opt.word.length >= 9 ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} shadow-sm active:scale-95 transition">
+              ${formatText(opt.word)}
+            </button>
+          `).join('');
+        }
+        return;
+      }
+
+      if (q.mode === 'first_letter') {
+        promptArea.innerHTML = `
+          <div class="text-7xl sm:text-8xl">${q.emoji}</div>
+          <div id="oj-word-mask" class="text-4xl sm:text-5xl font-black tracking-widest text-slate-900 bg-slate-100 px-6 py-3 rounded-2xl border-2 border-slate-300">
+            <span class="text-amber-600">_</span>${formatText(q.rest)}
+          </div>
+        `;
+      } else {
+        promptArea.innerHTML = `
+          <button onclick="speakWord('${q.answer.toLowerCase()}')" class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black px-7 py-4 rounded-2xl shadow-md text-xl">
+            <span>🔊</span>
+            <span>Hør ordet</span>
+          </button>
+        `;
+      }
+
+      grid.innerHTML = q.options.map(opt => {
+        const isSingle = opt.length === 1;
+        const colorCls = isSingle ? tileColorClass(opt) : 'bg-slate-50 hover:bg-amber-50 border-slate-300 text-slate-900';
+        const textSize = opt.length >= 8 ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl';
+        return `
+          <button onclick="checkOrdjaktenAnswer('${opt}', this)" class="w-full min-h-[76px] px-4 py-4 rounded-2xl border-2 shadow-sm font-black ${textSize} tracking-wide transition active:scale-95 break-words ${colorCls}">
+            ${formatText(opt)}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function checkOrdjaktenTF(chosen, btnEl) {
+      if (ojState.locked) return;
+      if (chosen === ojState.currentQ.answer) {
+        ojState.locked = true;
+        ojState.score += 1;
+        playSuccessSound();
+        triggerAvatarCheer();
+        btnEl.classList.add('!bg-emerald-500', '!text-white', '!border-emerald-700');
+        document.getElementById('oj-feedback').innerHTML = `<span class="text-emerald-700">🎉 Riktig!</span>`;
+        addStar(1);
+        setTimeout(() => nextOrdjaktenQuestion(), 1000);
+      } else {
+        playGentleError();
+        triggerAvatarNod();
+        btnEl.classList.add('opacity-40');
+        document.getElementById('oj-feedback').innerHTML = `<span class="text-rose-700">Les setningen en gang til!</span>`;
+      }
+    }
+
+    function checkOrdjaktenMatch(chosenWord, btnEl) {
+      if (ojState.locked) return;
+      if (chosenWord === ojState.currentQ.target.word) {
+        ojState.locked = true;
+        ojState.score += 1;
+        playSuccessSound();
+        triggerAvatarCheer();
+        btnEl.classList.add('!bg-emerald-500', '!text-white', '!border-emerald-700');
+        document.getElementById('oj-feedback').innerHTML = `<span class="text-emerald-700">🎉 Riktig!</span>`;
+        addStar(1);
+        setTimeout(() => nextOrdjaktenQuestion(), 950);
+      } else {
+        playGentleError();
+        triggerAvatarNod();
+        btnEl.classList.add('!bg-rose-100', '!border-rose-400', 'opacity-55');
+        document.getElementById('oj-feedback').innerHTML = `<span class="text-rose-700">Prøv en annen!</span>`;
+      }
+    }
+
+    function checkOrdjaktenAnswer(chosen, btnEl) {
+      if (ojState.locked) return;
+      const q = ojState.currentQ;
+
+      if (chosen === q.answer) {
+        ojState.locked = true;
+        ojState.score += 1;
+        playSuccessSound();
+        triggerAvatarCheer();
+        btnEl.classList.add('!bg-emerald-500', '!text-white', '!border-emerald-700');
+
+        if (q.mode === 'first_letter') {
+          const mask = document.getElementById('oj-word-mask');
+          if (mask) mask.textContent = formatText(q.fullWord);
+          speakWord(q.fullWord.toLowerCase());
+        } else {
+          speakWord(q.answer.toLowerCase());
+        }
+
+        document.getElementById('oj-feedback').innerHTML = `<span class="text-emerald-700">🎉 Riktig!</span>`;
+        addStar(1);
+        setTimeout(() => nextOrdjaktenQuestion(), 1150);
+      } else {
+        playGentleError();
+        triggerAvatarNod();
+        btnEl.classList.add('!bg-rose-100', '!border-rose-400', '!text-rose-800');
+        document.getElementById('oj-feedback').innerHTML = `<span class="text-rose-700">Prøv et annet ord!</span>`;
+      }
+    }
+
+    /* =========================================================================
+       9. MODUL 3: LYDBOKA
+       ========================================================================= */
+
+    let lbPromptIdx = 0;
+    let lbFreeMode = false;
+
+    function startLydboka() {
+      openView('view-lydboka');
+      initLydboka();
+    }
+
+    function initLydboka() {
+      lbPromptIdx = 0;
+      setLydbokaFree(lbFreeMode);
+      renderLydbokaPrompt();
+      updateLydbokaPreview();
+    }
+
+    function setLydbokaFree(isFree) {
+      lbFreeMode = isFree;
+      document.getElementById('lb-prompt-box').classList.toggle('hidden', isFree);
+      document.getElementById('lb-mode-card').className = !isFree
+        ? 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-extrabold border-2 bg-sky-600 text-white border-sky-700 transition'
+        : 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-extrabold border-2 bg-slate-50 text-slate-700 border-slate-200 transition';
+      document.getElementById('lb-mode-free').className = isFree
+        ? 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-extrabold border-2 bg-sky-600 text-white border-sky-700 transition'
+        : 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-extrabold border-2 bg-slate-50 text-slate-700 border-slate-200 transition';
+    }
+
+    function renderLydbokaPrompt() {
+      const list = LYDBOKA_PROMPTS[state.activeTrack] || LYDBOKA_PROMPTS[2];
+      const item = list[lbPromptIdx % list.length];
+      document.getElementById('lb-prompt-emoji').textContent = item.emoji;
+      document.getElementById('lb-prompt-text').textContent = state.uppercase ? item.text.toUpperCase() : item.text;
+    }
+
+    function speakLydbokaPrompt() {
+      const list = LYDBOKA_PROMPTS[state.activeTrack] || LYDBOKA_PROMPTS[2];
+      const item = list[lbPromptIdx % list.length];
+      speakWord(item.speak);
+    }
+
+    function nextLydbokaPrompt() {
+      playPop();
+      lbPromptIdx += 1;
+      renderLydbokaPrompt();
+    }
+
+    const lbTextarea = document.getElementById('lb-textarea');
+    lbTextarea.addEventListener('input', () => {
+      updateLydbokaPreview();
+      const val = lbTextarea.value;
+      const lastChar = val.slice(-1);
+
+      if (lastChar === ' ') {
+        const words = val.trim().split(/\s+/);
+        const lastWord = words[words.length - 1];
+        if (lastWord && lastWord.length >= 2) speakWord(lastWord.toLowerCase());
+      } else if (['.', '!', '?'].includes(lastChar)) {
+        const sentences = val.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+        const lastSentence = sentences[sentences.length - 1];
+        if (lastSentence) speakWord(lastSentence.toLowerCase());
+      } else {
+        playPop();
+      }
+    });
+
+    function updateLydbokaPreview() {
+      const raw = formatText(lbTextarea.value);
+      const preview = document.getElementById('lb-colored-preview');
+      if (!raw) {
+        preview.innerHTML = `<span class="text-slate-400 text-sm font-semibold">Teksten din vises her…</span>`;
+        return;
+      }
+      preview.innerHTML = raw.split('').map(ch => {
+        if (ch === ' ') return `<span class="inline-block w-3"></span>`;
+        if (ch === '\n') return `<div class="w-full"></div>`;
+        if (!state.colorCoding) return `<span class="text-slate-900">${ch}</span>`;
+        const up = ch.toUpperCase();
+        if (VOWELS.has(up)) return `<span class="char-vowel">${ch}</span>`;
+        if (/[A-ZÆØÅ]/.test(up)) return `<span class="char-consonant">${ch}</span>`;
+        return `<span class="text-slate-700">${ch}</span>`;
+      }).join('');
+    }
+
+    function speakLydbokaAll() {
+      const txt = lbTextarea.value.trim();
+      if (txt) speakWord(txt.toLowerCase());
+    }
+
+    function clearLydboka() {
+      playPop();
+      lbTextarea.value = '';
+      updateLydbokaPreview();
+    }
+
+    function rewardLydbokaEntry() {
+      if (!lbTextarea.value.trim()) return;
+      playSuccessSound();
+      triggerAvatarCheer();
+      speakLydbokaAll();
+      addStar(1);
+    }
+
+    /* =========================================================================
+       10. MINECRAFT & ALBUM
+       ========================================================================= */
+
+    function openMcDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('LesetreningMcDB', 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('builds', { keyPath: 'id', autoIncrement: true });
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function renderMinecraftView() {
+      const track = TRACKS.find(t => t.id === state.activeTrack);
+      document.getElementById('mc-track-badge').textContent = `${track.icon} ${track.short}`;
+      const list = MINECRAFT_MISSIONS[state.activeTrack] || MINECRAFT_MISSIONS[2];
+      const m = list[state.mcMissionIdx % list.length];
+      document.getElementById('mc-mission-card').innerHTML = `
+        <div class="text-lg sm:text-xl font-black text-emerald-950">${m.title}</div>
+        <div class="text-sm text-emerald-900 mt-1">${m.desc}</div>
+      `;
+      loadMinecraftGallery();
+    }
+
+    function nextMinecraftMission() {
+      playPop();
+      state.mcMissionIdx += 1;
+      saveState();
+      renderMinecraftView();
+    }
+
+    async function handleMinecraftUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const db = await openMcDB();
+          const tx = db.transaction('builds', 'readwrite');
+          tx.objectStore('builds').add({ dataUrl: reader.result, created: Date.now() });
+          tx.oncomplete = () => { playSuccessSound(); addStar(2); loadMinecraftGallery(); };
+        } catch (e) {}
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function loadMinecraftGallery() {
+      const gallery = document.getElementById('mc-gallery');
+      try {
+        const db = await openMcDB();
+        const tx = db.transaction('builds', 'readonly');
+        const req = tx.objectStore('builds').getAll();
+        req.onsuccess = () => {
+          const items = req.result || [];
+          if (items.length === 0) {
+            gallery.innerHTML = `<div class="col-span-full text-sm text-slate-500">Ingen bilder ennå.</div>`;
+            return;
+          }
+          gallery.innerHTML = items.reverse().map(it => `
+            <div class="rounded-2xl overflow-hidden border-2 border-slate-200 shadow-sm bg-slate-100 aspect-video">
+              <img src="${it.dataUrl}" class="w-full h-full object-cover" alt="Minecraft-bygg" />
+            </div>
+          `).join('');
+        };
+      } catch (e) { gallery.innerHTML = ''; }
+    }
+
+    function renderAlbumView() {
+      document.getElementById('album-unlocked-badge').textContent = `${state.unlockedMonsters.length} / ${MONSTERS.length}`;
+      document.getElementById('album-grid').innerHTML = MONSTERS.map(m => {
+        const unlocked = state.unlockedMonsters.includes(m.id);
+        return `
+          <div class="p-3 rounded-2xl border-2 text-center ${unlocked ? 'bg-amber-50/60 border-amber-300 shadow-sm' : 'bg-slate-100 border-slate-200 opacity-55'}">
+            <div class="w-16 h-16 mx-auto">${unlocked ? renderMonsterSVG(m) : '<div class="w-full h-full flex items-center justify-center text-3xl">🥚</div>'}</div>
+            <div class="font-black text-xs mt-2 text-slate-800">${unlocked ? m.name : 'Uklekket'}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* =========================================================================
+       11. FRIVILLIGE MINISPILL (Rallybiler, Sprettert, Ord-ballonger)
+       ========================================================================= */
+
+    let activeMgCleanup = null;
+    let mgRunCounter = 0;
+
+    function stopAllMinigames() {
+      mgRunCounter += 1;
+      if (typeof activeMgCleanup === 'function') {
+        try { activeMgCleanup(); } catch (e) {}
+        activeMgCleanup = null;
+      }
+    }
+
+    function openMinigameHub() {
+      stopAllMinigames();
+      document.getElementById('mg-token-count').textContent = state.minigameTokens;
+      document.getElementById('mg-selector').classList.remove('hidden');
+      document.getElementById('mg-arena').classList.add('hidden');
+      document.getElementById('mg-arena').innerHTML = '';
+      document.getElementById('modal-minigames').classList.remove('hidden');
+    }
+
+    function closeMinigameHub() {
+      stopAllMinigames();
+      closeModal('modal-minigames');
+    }
+
+    function launchMinigame(type) {
+      stopAllMinigames();
+      if (state.minigameTokens > 0) {
+        state.minigameTokens -= 1;
+        saveState();
+      }
+      document.getElementById('mg-token-count').textContent = state.minigameTokens;
+      document.getElementById('mg-selector').classList.add('hidden');
+      const arena = document.getElementById('mg-arena');
+      arena.classList.remove('hidden');
+
+      if (type === 'rally') startRallyGame(arena);
+      else if (type === 'slingshot') startSlingshotGame(arena);
+      else if (type === 'balloons') startBalloonGame(arena);
+    }
+
+    function startRallyGame(container) {
+      const runId = ++mgRunCounter;
+      const bank = WORD_BANK[state.activeTrack] || WORD_BANK[2];
+      let lane = 1;
+      let score = 0;
+      let speedMult = 1.0;
+      let gateY = -110;
+      let gates = [];
+      let targetWord = null;
+      let roundMode = 'image_to_word';
+      let rafId = null;
+      let lastTime = performance.now();
+      let pausedUntil = 0;
+
+      function pickNewRow() {
+        const shuffled = [...bank].sort(() => Math.random() - 0.5).slice(0, 3);
+        targetWord = shuffled[Math.floor(Math.random() * 3)];
+        roundMode = Math.random() < 0.5 ? 'image_to_word' : 'word_to_image';
+
+        gates = shuffled.map((item, idx) => ({
+          lane: idx, word: item.word, emoji: item.emoji, correct: item.word === targetWord.word, wrongHit: false
+        }));
+        gateY = -100;
+
+        const promptBox = document.getElementById('rally-target-banner');
+        if (promptBox) {
+          if (roundMode === 'image_to_word') {
+            promptBox.innerHTML = `<span class="text-4xl sm:text-5xl">${targetWord.emoji}</span><div class="text-sm sm:text-base font-black text-white">Finn riktig ord!</div>`;
+          } else {
+            promptBox.innerHTML = `<div class="text-2xl sm:text-3xl font-black tracking-wider text-white">${formatText(targetWord.word)}</div>`;
+          }
+        }
+      }
+
+      container.innerHTML = `
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <button onclick="openMinigameHub()" class="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl font-bold text-sm">← Tilbake</button>
+            <div class="flex items-center gap-1">
+              <button data-spd="0.65" class="rally-spd bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-bold">🐢 Rolig</button>
+              <button data-spd="1.0" class="rally-spd bg-rose-100 border border-rose-400 px-2.5 py-1 rounded-lg text-xs font-bold">🚶 Passe</button>
+              <button data-spd="1.35" class="rally-spd bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-bold">🐇 Rask</button>
+            </div>
+            <div class="font-black text-rose-700">Poeng: <span id="rally-score">0</span></div>
+          </div>
+
+          <div class="bg-gradient-to-r from-rose-600 to-red-600 rounded-2xl p-3 shadow flex items-center justify-between gap-3">
+            <div id="rally-target-banner" class="flex items-center gap-3 mx-auto"></div>
+            <button id="rally-speak-btn" class="bg-white/20 hover:bg-white/30 text-white font-black px-3.5 py-2 rounded-xl text-sm shrink-0">🔊 Hjelp</button>
+          </div>
+
+          <div id="rally-road" class="relative w-full h-[440px] bg-slate-800 rounded-3xl overflow-hidden border-4 border-slate-700 select-none" style="touch-action: manipulation;">
+            <div class="absolute inset-y-0 left-1/3 w-1 border-l-4 border-dashed border-white/40 pointer-events-none"></div>
+            <div class="absolute inset-y-0 left-2/3 w-1 border-l-4 border-dashed border-white/40 pointer-events-none"></div>
+            <div class="absolute inset-0 grid grid-cols-3 z-10">
+              <div data-lane="0" class="rally-lane-tap h-full cursor-pointer"></div>
+              <div data-lane="1" class="rally-lane-tap h-full cursor-pointer"></div>
+              <div data-lane="2" class="rally-lane-tap h-full cursor-pointer"></div>
+            </div>
+            <div id="rally-gates-layer" class="absolute inset-x-0 top-0 pointer-events-none z-20"></div>
+            <div id="rally-car" class="absolute bottom-5 w-16 h-24 -ml-8 transition-all duration-150 pointer-events-none z-30" style="left: 50%;">
+              <svg viewBox="0 0 80 120" class="w-full h-full drop-shadow-lg">
+                <rect x="4" y="18" width="12" height="24" rx="4" fill="#0f172a" />
+                <rect x="64" y="18" width="12" height="24" rx="4" fill="#0f172a" />
+                <rect x="4" y="78" width="12" height="24" rx="4" fill="#0f172a" />
+                <rect x="64" y="78" width="12" height="24" rx="4" fill="#0f172a" />
+                <rect x="14" y="8" width="52" height="104" rx="18" fill="#ef4444" stroke="#991b1b" stroke-width="3" />
+                <rect x="33" y="10" width="5" height="100" fill="#ffffff" />
+                <rect x="42" y="10" width="5" height="100" fill="#ffffff" />
+                <path d="M22 36 Q40 28 58 36 L54 54 Q40 50 26 54 Z" fill="#38bdf8" />
+                <rect x="24" y="80" width="32" height="14" rx="5" fill="#1e293b" />
+                <ellipse cx="23" cy="13" rx="5" ry="3" fill="#fef08a" />
+                <ellipse cx="57" cy="13" rx="5" ry="3" fill="#fef08a" />
+              </svg>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <button id="rally-left-btn" class="bg-slate-200 hover:bg-slate-300 active:scale-95 font-black py-3 rounded-2xl text-xl">⬅️ Venstre</button>
+            <button id="rally-right-btn" class="bg-slate-200 hover:bg-slate-300 active:scale-95 font-black py-3 rounded-2xl text-xl">Høyre ➡️</button>
+          </div>
+        </div>
+      `;
+
+      const carEl = document.getElementById('rally-car');
+      const gatesLayer = document.getElementById('rally-gates-layer');
+      const scoreEl = document.getElementById('rally-score');
+
+      function setLane(newLane) {
+        const clamped = Math.max(0, Math.min(2, newLane));
+        if (clamped !== lane) {
+          const tiltDeg = clamped < lane ? -10 : 10;
+          lane = clamped;
+          playPop();
+          carEl.style.left = lane === 0 ? '16.66%' : (lane === 1 ? '50%' : '83.33%');
+          carEl.style.transform = `rotate(${tiltDeg}deg)`;
+          setTimeout(() => { if (runId === mgRunCounter && carEl) carEl.style.transform = 'rotate(0deg)'; }, 160);
+        }
+      }
+
+      document.getElementById('rally-speak-btn').onpointerdown = () => { if (targetWord) speakWord(targetWord.word.toLowerCase()); };
+      document.getElementById('rally-left-btn').onpointerdown = () => setLane(lane - 1);
+      document.getElementById('rally-right-btn').onpointerdown = () => setLane(lane + 1);
+      container.querySelectorAll('.rally-lane-tap').forEach(el => { el.onpointerdown = () => setLane(parseInt(el.dataset.lane, 10)); });
+      container.querySelectorAll('.rally-spd').forEach(btn => {
+        btn.onpointerdown = () => {
+          speedMult = parseFloat(btn.dataset.spd);
+          container.querySelectorAll('.rally-spd').forEach(b => b.classList.remove('bg-rose-100', 'border', 'border-rose-400'));
+          btn.classList.add('bg-rose-100', 'border', 'border-rose-400');
+        };
+      });
+
+      function onKey(e) {
+        if (runId !== mgRunCounter) return;
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') setLane(lane - 1);
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') setLane(lane + 1);
+      }
+      window.addEventListener('keydown', onKey);
+      pickNewRow();
+
+      function loop(now) {
+        if (runId !== mgRunCounter) return;
+        const dt = Math.min((now - lastTime) / 1000, 0.05);
+        lastTime = now;
+
+        if (now >= pausedUntil) gateY += 72 * speedMult * dt;
+        gatesLayer.style.transform = `translateY(${gateY}px)`;
+        gatesLayer.innerHTML = `
+          <div class="grid grid-cols-3 gap-2 px-2">
+            ${gates.map(g => `
+              <div class="rounded-2xl min-h-[72px] p-2 flex items-center justify-center text-center border-2 shadow-md ${g.wrongHit ? 'bg-rose-600 border-rose-300 text-white opacity-60' : 'bg-white/95 border-amber-400 text-slate-900'}">
+                ${roundMode === 'image_to_word'
+                  ? `<div class="font-black text-base sm:text-xl tracking-wide break-all">${formatText(g.word)}</div>`
+                  : `<div class="text-4xl sm:text-5xl">${g.emoji}</div>`}
+              </div>
+            `).join('')}
+          </div>
+        `;
+
+        if (gateY >= 325 && gateY <= 385 && now >= pausedUntil) {
+          const hitGate = gates[lane];
+          if (hitGate && hitGate.correct) {
+            score += 1;
+            scoreEl.textContent = score;
+            playSuccessSound();
+            speakWord(targetWord.word.toLowerCase());
+            if (score % 3 === 0) addStar(1);
+            pickNewRow();
+          } else if (hitGate && !hitGate.wrongHit) {
+            hitGate.wrongHit = true;
+            playGentleError();
+            pausedUntil = now + 500;
+            speakWord(targetWord.word.toLowerCase());
+            setTimeout(() => { if (runId === mgRunCounter) pickNewRow(); }, 520);
+          }
+        } else if (gateY > 450) {
+          pickNewRow();
+        }
+        rafId = requestAnimationFrame(loop);
+      }
+
+      rafId = requestAnimationFrame(loop);
+      activeMgCleanup = () => { if (rafId) cancelAnimationFrame(rafId); window.removeEventListener('keydown', onKey); };
+    }
+
+    function startSlingshotGame(container) {
+      const runId = ++mgRunCounter;
+      let collectedLetters = [];
+      let builtLetters = [];
+      let targets = [];
+      let ball = { x: 95, y: 225, vx: 0, vy: 0, active: false, dragging: false };
+      const anchor = { x: 95, y: 225 };
+      let rafId = null;
+      const TARGET_POOL = ['S', 'O', 'L', 'B', 'I', 'K', 'A', 'T', 'M', 'U', 'R', 'E', 'H', 'N', 'P', 'Å', 'Ø', 'Æ'];
+
+      function spawnTargets() {
+        const chosen = [...TARGET_POOL].sort(() => Math.random() - 0.5).slice(0, 7);
+        const positions = [
+          { x: 310, y: 90 }, { x: 430, y: 80 }, { x: 540, y: 110 },
+          { x: 340, y: 185 }, { x: 470, y: 175 },
+          { x: 380, y: 265 }, { x: 520, y: 255 }
+        ];
+        targets = chosen.map((ch, idx) => ({ ch, x: positions[idx].x, y: positions[idx].y, r: 26, hit: false, isVowel: VOWELS.has(ch) }));
+      }
+
+      container.innerHTML = `
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <button onclick="openMinigameHub()" class="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl font-bold text-sm">← Tilbake</button>
+            <button id="sling-new-targets" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold px-3 py-1.5 rounded-xl text-xs">Nye blinker ↻</button>
+          </div>
+          <canvas id="sling-canvas" width="620" height="310" class="w-full h-[240px] sm:h-[290px] bg-gradient-to-b from-sky-200 to-emerald-100 rounded-3xl border-2 border-amber-300 block" style="touch-action: none;"></canvas>
+          <div class="bg-slate-50 rounded-2xl p-3.5 border-2 border-slate-200 space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-xs font-extrabold text-slate-600">Trykk på bokstavene du treffer:</span>
+              <div class="flex items-center gap-1">
+                ${['A', 'E', 'I', 'O', 'U'].map(v => `<button data-freev="${v}" class="sling-free-v ${tileColorClass(v)} border font-black w-7 h-7 rounded-lg text-xs">${formatText(v)}</button>`).join('')}
+              </div>
+            </div>
+            <div id="sling-collected" class="flex flex-wrap gap-2 min-h-[42px]"></div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
+              <div id="sling-word-box" class="flex flex-wrap items-center gap-1 min-h-[44px] px-3 py-1 bg-white rounded-xl border-2 border-amber-300 flex-1 font-black text-2xl text-slate-900"></div>
+              <div class="flex items-center gap-2">
+                <button id="sling-clear-word" class="bg-slate-200 hover:bg-slate-300 font-bold px-3 py-2.5 rounded-xl text-sm">Tøm</button>
+                <button id="sling-speak-word" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2.5 rounded-xl shadow text-sm">🔊 Les ordet!</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const canvas = document.getElementById('sling-canvas');
+      const ctx = canvas.getContext('2d');
+
+      function renderWordBench() {
+        const colEl = document.getElementById('sling-collected');
+        colEl.innerHTML = collectedLetters.length === 0
+          ? `<span class="text-xs text-slate-400 font-semibold self-center">Skyt på bokstavene over!</span>`
+          : collectedLetters.map((ch, idx) => `<button data-cidx="${idx}" class="sling-pick-ch w-10 h-11 rounded-xl border-2 font-black text-xl shadow-sm ${tileColorClass(ch)}">${formatText(ch)}</button>`).join('');
+        colEl.querySelectorAll('.sling-pick-ch').forEach(btn => {
+          btn.onclick = () => { playPop(); builtLetters.push(collectedLetters[parseInt(btn.dataset.cidx, 10)]); renderWordBench(); };
+        });
+
+        const wordBox = document.getElementById('sling-word-box');
+        wordBox.innerHTML = builtLetters.length === 0
+          ? `<span class="text-slate-400 text-sm font-semibold">Ditt ord…</span>`
+          : builtLetters.map(ch => `<span class="${state.colorCoding ? (VOWELS.has(ch) ? 'char-vowel' : 'char-consonant') : 'text-slate-900'}">${formatText(ch)}</span>`).join('');
+      }
+
+      container.querySelectorAll('.sling-free-v').forEach(btn => { btn.onclick = () => { playPop(); builtLetters.push(btn.dataset.freev); renderWordBench(); }; });
+      document.getElementById('sling-clear-word').onclick = () => { playPop(); builtLetters = []; renderWordBench(); };
+      document.getElementById('sling-speak-word').onclick = () => {
+        if (builtLetters.length < 2) return;
+        const word = builtLetters.join('');
+        playSuccessSound();
+        speakWord(word.toLowerCase());
+        addStar(1);
+        builtLetters = [];
+        renderWordBench();
+      };
+      document.getElementById('sling-new-targets').onclick = () => { playPop(); spawnTargets(); };
+
+      function getCanvasCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) };
+      }
+      canvas.onpointerdown = (e) => {
+        if (ball.active) return;
+        const pos = getCanvasCoords(e);
+        if (Math.hypot(pos.x - ball.x, pos.y - ball.y) < 65) { ball.dragging = true; canvas.setPointerCapture(e.pointerId); }
+      };
+      canvas.onpointermove = (e) => {
+        if (!ball.dragging) return;
+        const pos = getCanvasCoords(e);
+        const dx = pos.x - anchor.x, dy = pos.y - anchor.y;
+        const dist = Math.min(85, Math.hypot(dx, dy));
+        const ang = Math.atan2(dy, dx);
+        ball.x = anchor.x + Math.cos(ang) * dist;
+        ball.y = anchor.y + Math.sin(ang) * dist;
+      };
+      canvas.onpointerup = () => {
+        if (!ball.dragging) return;
+        ball.dragging = false;
+        const dx = anchor.x - ball.x, dy = anchor.y - ball.y;
+        if (Math.hypot(dx, dy) > 12) { ball.vx = dx * 10.5; ball.vy = dy * 10.5; ball.active = true; playPop(); }
+        else { ball.x = anchor.x; ball.y = anchor.y; }
+      };
+
+      spawnTargets();
+      renderWordBench();
+      let lastTime = performance.now();
+
+      function loop(now) {
+        if (runId !== mgRunCounter) return;
+        const dt = Math.min((now - lastTime) / 1000, 0.05);
+        lastTime = now;
+
+        if (ball.active) {
+          ball.vy += 520 * dt;
+          ball.x += ball.vx * dt;
+          ball.y += ball.vy * dt;
+          targets.forEach(t => {
+            if (!t.hit && Math.hypot(ball.x - t.x, ball.y - t.y) < t.r + 14) {
+              t.hit = true;
+              collectedLetters.push(t.ch);
+              playSuccessSound();
+              renderWordBench();
+            }
+          });
+          if (ball.x > canvas.width + 20 || ball.y > canvas.height + 20 || ball.x < -20) {
+            ball = { x: anchor.x, y: anchor.y, vx: 0, vy: 0, active: false, dragging: false };
+            if (targets.every(t => t.hit)) spawnTargets();
+          }
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#16a34a'; ctx.fillRect(0, 285, canvas.width, 25);
+        ctx.strokeStyle = '#78350f'; ctx.lineWidth = 9; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(anchor.x, 285); ctx.lineTo(anchor.x, anchor.y + 18); ctx.lineTo(anchor.x - 14, anchor.y - 12); ctx.moveTo(anchor.x, anchor.y + 18); ctx.lineTo(anchor.x + 14, anchor.y - 12); ctx.stroke();
+
+        if (ball.dragging) {
+          const simVx = (anchor.x - ball.x) * 10.5, simVy = (anchor.y - ball.y) * 10.5;
+          ctx.fillStyle = 'rgba(217, 119, 6, 0.7)';
+          for (let step = 1; step <= 8; step++) {
+            const t = step * 0.08;
+            ctx.beginPath(); ctx.arc(ball.x + simVx * t, ball.y + simVy * t + 0.5 * 520 * t * t, 4, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+        if (!ball.active) {
+          ctx.strokeStyle = '#92400e'; ctx.lineWidth = 4;
+          ctx.beginPath(); ctx.moveTo(anchor.x - 14, anchor.y - 12); ctx.lineTo(ball.x, ball.y); ctx.lineTo(anchor.x + 14, anchor.y - 12); ctx.stroke();
+        }
+        ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(ball.x, ball.y, 15, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#b45309'; ctx.lineWidth = 3; ctx.stroke();
+
+        targets.forEach(t => {
+          if (t.hit) return;
+          ctx.fillStyle = state.colorCoding ? (t.isVowel ? '#fef2f2' : '#eff6ff') : '#f8fafc';
+          ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2); ctx.fill();
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = state.colorCoding ? (t.isVowel ? '#ef4444' : '#3b82f6') : '#64748b';
+          ctx.stroke();
+          ctx.fillStyle = state.colorCoding ? (t.isVowel ? '#b91c1c' : '#1d4ed8') : '#0f172a';
+          ctx.font = '900 24px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(formatText(t.ch), t.x, t.y + 1);
+        });
+
+        rafId = requestAnimationFrame(loop);
+      }
+
+      rafId = requestAnimationFrame(loop);
+      activeMgCleanup = () => { if (rafId) cancelAnimationFrame(rafId); };
+    }
+
+    function startBalloonGame(container) {
+      const bank = getActiveWordList();
+      let score = 0;
+
+      function nextRound() {
+        const picks = [...bank].sort(() => Math.random() - 0.5).slice(0, 6);
+        const target = picks[Math.floor(Math.random() * picks.length)];
+        const colors = ['bg-rose-500', 'bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 'bg-teal-500'];
+
+        container.innerHTML = `
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <button onclick="openMinigameHub()" class="bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl font-bold text-sm">← Tilbake</button>
+              <button onclick="speakWord('${target.word.toLowerCase()}')" class="bg-sky-600 text-white font-black px-5 py-2.5 rounded-2xl shadow">🔊 Hør ordet</button>
+              <div class="font-black text-sky-800">Poeng: ${score}</div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 py-3">
+              ${picks.map((item, idx) => `
+                <button data-w="${item.word}" class="balloon-btn ${colors[idx % colors.length]} hover:opacity-95 active:scale-90 text-white rounded-full aspect-square max-w-[138px] w-full mx-auto shadow-lg flex flex-col items-center justify-center p-3 font-black text-lg sm:text-xl transition">
+                  <span>🎈</span>
+                  <span class="break-all">${formatText(item.word)}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+
+        container.querySelectorAll('.balloon-btn').forEach(btn => {
+          btn.onclick = () => {
+            if (btn.dataset.w === target.word) {
+              score += 1;
+              playSuccessSound();
+              if (score % 3 === 0) addStar(1);
+              nextRound();
+            } else {
+              playGentleError();
+              btn.classList.add('opacity-30');
+            }
+          };
+        });
+        speakWord(target.word.toLowerCase());
+      }
+
+      nextRound();
+      activeMgCleanup = () => {};
+    }
+
+    // Oppstart
+    updateAllUI();
+  </script>
+</body>
+</html>
